@@ -1,4 +1,4 @@
-feaxures
+Feaxures JS - progressive enhancement done right!
 ========
 
-Feaxures JS - progressive enhancement done right!
+www.feaxures.com
