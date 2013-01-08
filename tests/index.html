@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Feaxures Tests</title>
+  <link rel="stylesheet" href="css/qunit.css">
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+  <script src="js/qunit.js"></script>
+  <script src="../js/require.js"></script>
+  <script>
+    require.config({
+        'baseUrl': './js/',
+        'map': {
+            '*': {
+                'css': '../../js/require.css'
+            }
+        },
+        'paths': {
+            'jquery': ['//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min', '../../js/jquery'],
+            'feaxures': '../../js/feaxures',
+        },
+        'shim': {
+            'jquery.pc': {
+                deps: ['jquery.pa', 'jquery.pb']
+            },
+            'jquery.pd': {
+                deps: ['jquery.pa', 'jquery.pb', 'jquery.pc']
+            }
+        }
+    });
+  </script>
+  <script src="js/feaxures.tests.js"></script>
+</body>
+</html>
