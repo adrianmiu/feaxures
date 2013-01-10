@@ -195,7 +195,7 @@ require(['feaxures'], function(Feaxures) {
         }, 1000);
     });
 
-    test('feature is not attached if beforeAttach() returns false', function() {
+    test('feature is not attached if onBeforeAttach() returns false', function() {
         stop();
         // create element that the feature will be applied to
         $.each(['a', 'b', 'c'], function(index, val) {
@@ -203,7 +203,7 @@ require(['feaxures'], function(Feaxures) {
         });
         feaxures.register('bareal', {
             files: ['real'],
-            beforeAttach: function(event) {
+            onBeforeAttach: function(event) {
                 if ($(event.target).attr('id') !== 'bareal-a') {
                     event.result = false;
                 }
@@ -225,7 +225,7 @@ require(['feaxures'], function(Feaxures) {
         }, 100);
     });
 
-    test('afterAttach() is called', function(){
+    test('onAfterAttach() is called', function(){
         stop();
         // create element that the feature will be applied to
         $.each(['a', 'b', 'c'], function(index, val) {
@@ -233,7 +233,7 @@ require(['feaxures'], function(Feaxures) {
         });
         feaxures.register('aareal', {
             files: ['real'],
-            afterAttach: function(event) {
+            onAfterAttach: function(event) {
                 $(event.target).addClass('after-apply');
             },
             attach: function(element, options) {
@@ -248,7 +248,7 @@ require(['feaxures'], function(Feaxures) {
                     attached++;
                 }
             });
-            equal(attached, 3, 'afterAttach() called on all 3 elements');
+            equal(attached, 3, 'onAfterAttach() called on all 3 elements');
             start();
         }, 100);
     });

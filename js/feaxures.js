@@ -181,8 +181,8 @@
     /**
      * Sets/retrieves configuration options. The list of all available options below
      * - debug: activate/deactivates the debug mode (some log messages are sent to the console)
-     * - beforeAttach: callback(element, feature, options) called before a feature is applied to a DOM element
-     * - afterAttach: callback(element, feature, options) called after a feature is applied to a DOM element
+     * - onBeforeAttach: callback(element, feature, options) called before a feature is applied to a DOM element
+     * - onAfterAttach: callback(element, feature, options) called after a feature is applied to a DOM element
      * - onLoad: callback(feature) called after a feature is loaded
      * - onLoadError: callback(feature, error) called if a feature cannot be loaded
      *
@@ -248,9 +248,9 @@
             'onLoadError' : null,
             // callback to be executed before a feature is applied to a DOM element
             // if it returns false the feature is not applied anymore
-            'beforeAttach' : null,
+            'onBeforeAttach' : null,
             // callback to be executed after a feature is applied to  a DOM element
-            'afterAttach'  : null
+            'onAfterAttach'  : null
         }, options, {'name': feature});
         if (typeof options.onLoad === 'function') {
             this.on('load:' + feature, options.onLoad);
@@ -258,11 +258,11 @@
         if (typeof options.onLoadError === 'function') {
             this.on('loadError:' + feature, options.onLoadError);
         }
-        if (typeof options.beforeAttach === 'function') {
-            this.on('beforeAttach:' + feature, options.beforeAttach);
+        if (typeof options.onBeforeAttach === 'function') {
+            this.on('onBeforeAttach:' + feature, options.onBeforeAttach);
         }
-        if (typeof options.afterAttach === 'function') {
-            this.on('afterAttach:' + feature, options.afterAttach);
+        if (typeof options.onAfterAttach === 'function') {
+            this.on('onAfterAttach:' + feature, options.onAfterAttach);
         }
         _features[feature] = options;
     };
@@ -344,8 +344,8 @@
                 // add the defaults to the options list
                 options = $.extend({}, featureDefinition.defaults,  options);
 
-                // global beforeAttach event
-                var e = jQuery.Event('beforeAttach');
+                // global onBeforeAttach event
+                var e = jQuery.Event('onBeforeAttach');
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
@@ -353,12 +353,12 @@
                 if (e.result === false || e.isDefaultPrevented()) {
                     $this.attr('data-fxr-'+feature, null);
                     $this.data('fxt.'+feature, false); // we need this so we don't try to apply the feature again
-                    self.log('Feature ' + feature + ' was not applied because the global beforeAttach() returned false');
+                    self.log('Feature ' + feature + ' was not applied because the global onBeforeAttach() returned false');
                     return;
                 }
 
-                // feature's beforeAttach callback
-                e = jQuery.Event('beforeAttach:' + feature);
+                // feature's onBeforeAttach callback
+                e = jQuery.Event('onBeforeAttach:' + feature);
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
@@ -366,21 +366,21 @@
                 if (e.result === false || e.isDefaultPrevented()) {
                     $this.attr('data-fxr-'+feature, null);
                     $this.data('fxt.'+feature, false); // we need this so we don't try to apply the feature again
-                    self.log('Feature ' + feature + ' was not applied because the feature\'s beforeAttach() returned false');
+                    self.log('Feature ' + feature + ' was not applied because the feature\'s onBeforeAttach() returned false');
                     return;
                 }
 
                 featureDefinition.attach.call(self, element, options);
                 self.log('Feature ' + feature + ' was applied to element', element);
 
-                // feature's afterAttach callback
-                e = jQuery.Event('afterAttach:' + feature);
+                // feature's onAfterAttach callback
+                e = jQuery.Event('onAfterAttach:' + feature);
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
                 self.trigger(e);
-                // global afterAttach callback
-                e = jQuery.Event('afterAttach');
+                // global onAfterAttach callback
+                e = jQuery.Event('onAfterAttach');
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
@@ -483,16 +483,16 @@
                         $('body').one(evt+'.feaxures', feature.selector, function(ev, data) {
                               var elements = $(feature.selector).not($(ev.currentTarget));
 
-                              self.on('afterAttach:' + feature.name, function(e) {
+                              self.on('onAfterAttach:' + feature.name, function(e) {
                                   // we use ev.target to determine the exact element which triggered the event
                                   console.log(ev.target, evt, e);
                                   $(ev.target).trigger(evt);
                               });
 
                               // attach the feaxure to the rest of elements
-                              // we are doing on beforeAttach because a callback may prevent the feaxure for being added to the
-                              // element that has triggered the event and afterAttach will not be called anymore
-                              self.one('beforeAttach:' + feature.name, function() {
+                              // we are doing on onBeforeAttach because a callback may prevent the feaxure for being added to the
+                              // element that has triggered the event and onAfterAttach will not be called anymore
+                              self.one('onBeforeAttach:' + feature.name, function() {
                                   self.attach(feature.name, elements);
                               });
                               
