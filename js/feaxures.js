@@ -160,21 +160,22 @@
      * Event handlers using jQuery.Callbacks
      */
     Feaxures.prototype.on = function(eventName, method) {
-        _events.on.apply(_events, arguments);
+        _events.on(eventName, method);
         return this;
     };
 
     Feaxures.prototype.one = function(eventName, method) {
-        _events.one.apply(_events, arguments);
+        _events.one(eventName, method);
         return this;
     };
 
     Feaxures.prototype.off = function(eventName, method) {
-        _events.off.apply(_events, arguments);
+        _events.off(eventName, method);
         return this;
     };
 
-    Feaxures.prototype.trigger = function(eventName) {
+    Feaxures.prototype.trigger = function() {
+        console.log(this, arguments);
         _events.trigger.apply(_events, arguments);
     };
 
@@ -259,10 +260,10 @@
             this.on('loadError:' + feature, options.onLoadError);
         }
         if (typeof options.onBeforeAttach === 'function') {
-            this.on('onBeforeAttach:' + feature, options.onBeforeAttach);
+            this.on('beforeAttach:' + feature, options.onBeforeAttach);
         }
         if (typeof options.onAfterAttach === 'function') {
-            this.on('onAfterAttach:' + feature, options.onAfterAttach);
+            this.on('afterAttach:' + feature, options.onAfterAttach);
         }
         _features[feature] = options;
     };
@@ -300,13 +301,26 @@
         _load(featureDefinition.files, function() {
             _loadedFeatures[feature] = true;
             self.log('Feature ' + feature + ' was loaded');
-            self.trigger('load', feature);
-            self.trigger('load:' + feature);
+
+            var e = jQuery.Event('load');
+            e.feature = feature;
+            self.trigger(e);
+
+            e = jQuery.Event('load:' + feature);
+            e.feature = feature;
+            self.trigger(e);
+
             callback.apply(callback.prototype);
         }, function(err) {
             self.log('Error loading feature ' + feature);
-            self.trigger('loadError', feature);
-            self.trigger('loadError:' + feature);
+
+            var e = jQuery.Event('loadError');
+            e.feature = feature;
+            self.trigger(e);
+
+            e = jQuery.Event('loadError:' + feature);
+            e.feature = feature;
+            self.trigger(e);
         });
     };
     
@@ -332,7 +346,7 @@
         _each(domElements, function(index, element) {
             var $this = $(this),
                 options = $this.attr('data-fxr-'+feature),
-                alreadyAttached = ($this.data('fxt.'+feature) !== null && $this.data('fxt.'+feature) !== undefined);
+                alreadyAttached = ($this.data('fxr.'+feature) !== null && $this.data('fxr.'+feature) !== undefined);
 
             // feature is already loaded or it doesn't have an attach() method
             if (alreadyAttached || !featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
@@ -345,27 +359,27 @@
                 options = $.extend({}, featureDefinition.defaults,  options);
 
                 // global onBeforeAttach event
-                var e = jQuery.Event('onBeforeAttach');
+                var e = jQuery.Event('beforeAttach');
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
                 self.trigger(e);
                 if (e.result === false || e.isDefaultPrevented()) {
                     $this.attr('data-fxr-'+feature, null);
-                    $this.data('fxt.'+feature, false); // we need this so we don't try to apply the feature again
+                    $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
                     self.log('Feature ' + feature + ' was not applied because the global onBeforeAttach() returned false');
                     return;
                 }
 
                 // feature's onBeforeAttach callback
-                e = jQuery.Event('onBeforeAttach:' + feature);
+                e = jQuery.Event('beforeAttach:' + feature);
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
                 self.trigger(e);
                 if (e.result === false || e.isDefaultPrevented()) {
                     $this.attr('data-fxr-'+feature, null);
-                    $this.data('fxt.'+feature, false); // we need this so we don't try to apply the feature again
+                    $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
                     self.log('Feature ' + feature + ' was not applied because the feature\'s onBeforeAttach() returned false');
                     return;
                 }
@@ -374,13 +388,13 @@
                 self.log('Feature ' + feature + ' was applied to element', element);
 
                 // feature's onAfterAttach callback
-                e = jQuery.Event('onAfterAttach:' + feature);
+                e = jQuery.Event('afterAttach:' + feature);
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
                 self.trigger(e);
                 // global onAfterAttach callback
-                e = jQuery.Event('onAfterAttach');
+                e = jQuery.Event('afterAttach');
                 e.target = element;
                 e.feature = feature;
                 e.options = options;
@@ -390,7 +404,7 @@
             $this.attr('data-fxr-'+feature, null);
             // store the computed options for further reference
             // (eg: load more features depending on the existing features)
-            $this.data('fxt.'+feature, options);
+            $this.data('fxr.'+feature, options);
         });
         return this;
     };
@@ -483,20 +497,19 @@
                         $('body').one(evt+'.feaxures', feature.selector, function(ev, data) {
                               var elements = $(feature.selector).not($(ev.currentTarget));
 
-                              self.on('onAfterAttach:' + feature.name, function(e) {
+                              self.on('afterAttach:' + feature.name, function(e) {
                                   // we use ev.target to determine the exact element which triggered the event
-                                  console.log(ev.target, evt, e);
                                   $(ev.target).trigger(evt);
                               });
 
                               // attach the feaxure to the rest of elements
                               // we are doing on onBeforeAttach because a callback may prevent the feaxure for being added to the
                               // element that has triggered the event and onAfterAttach will not be called anymore
-                              self.one('onBeforeAttach:' + feature.name, function() {
+                              self.one('beforeAttach:' + feature.name, function() {
                                   self.attach(feature.name, elements);
                               });
                               
-                              // we attch the feature only on the target now 
+                              // we attch the feature only on the target now
                               // we use ev.currentTarget to determine the element to which event was bounded
                               self.attach(feature.name, $(ev.currentTarget));
                               ev.stopPropagation();

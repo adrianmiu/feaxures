@@ -186,7 +186,7 @@ require(['feaxures'], function(Feaxures) {
         setTimeout(function(){
             var attached = 0;
             $('[id^="real-"]:contains(random number)').each(function() {
-                if ($(this).data('fxt.real')) {
+                if ($(this).data('fxr.real')) {
                     attached++;
                 }
             });
@@ -216,7 +216,7 @@ require(['feaxures'], function(Feaxures) {
         setTimeout(function(){
             var attached = 0;
             $('[id^="bareal-"]:contains(random number)').each(function() {
-                if ($(this).data('fxt.bareal')) {
+                if ($(this).data('fxr.bareal')) {
                     attached++;
                 }
             });
@@ -269,7 +269,7 @@ require(['feaxures'], function(Feaxures) {
         setTimeout(function(){
             var attached = 0;
             $('[id^="morereal-"]:contains(random number)').each(function() {
-                if ($(this).data('fxt.real')) {
+                if ($(this).data('fxr.real')) {
                     attached++;
                 }
             });
