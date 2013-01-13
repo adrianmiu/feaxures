@@ -175,7 +175,7 @@
     };
 
     Feaxures.prototype.trigger = function() {
-        console.log(this, arguments);
+        this.log('Event "' + arguments[0].type + '" was called');
         _events.trigger.apply(_events, arguments);
     };
 
@@ -292,13 +292,23 @@
             callback = function() { return; };
         }
         
-        if (this.isLoaded(feature)) {
-            callback.apply(self);
+        var featureDefinition = _features[feature];
+        if (typeof(featureDefinition.files) == 'function') {
+            featureDefinition.files = featureDefinition.files.call(this);
+        }
+        if (!jQuery.isArray(featureDefinition.files)) {
+            this.log('The feature "' + feature + '" does not have a valid list of dependencies');
             return;
         }
 
-        var featureDefinition = _features[feature];
-        _load(featureDefinition.files, function() {
+        var dfd = $.Deferred();
+        // mark the feature as loaded and trigger the appropriate events
+        dfd.done(function(){
+            // feature is is already marked as loaded
+            if (_loadedFeatures[feature]) {
+                return;
+            }
+
             _loadedFeatures[feature] = true;
             self.log('Feature ' + feature + ' was loaded');
 
@@ -309,9 +319,11 @@
             e = jQuery.Event('load:' + feature);
             e.feature = feature;
             self.trigger(e);
+        });
 
-            callback.apply(callback.prototype);
-        }, function(err) {
+        dfd.done(callback);
+
+        dfd.fail(function(err){
             self.log('Error loading feature ' + feature);
 
             var e = jQuery.Event('loadError');
@@ -321,6 +333,17 @@
             e = jQuery.Event('loadError:' + feature);
             e.feature = feature;
             self.trigger(e);
+        });
+
+        if (this.isLoaded(feature)) {
+            dfd.resolve();
+            return;
+        }
+
+        _load(featureDefinition.files, function() {
+            dfd.resolve();
+        }, function(err) {
+            dfd.reject(err);
         });
     };
     
@@ -332,11 +355,26 @@
      */
     Feaxures.prototype.attach = function(feature, domElements) {
         var self = this,
-            featureDefinition = _features[feature];
+            featureDefinition = _features[feature],
+            enhanceableElements = 0;
         // no point in going further if there are no domElements
         if (!domElements.length || domElements.length < 1) {
             return;
         }
+        // we don't have a proper attach() callback
+        if (!featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
+            return;
+        }
+
+        // first we need to determine if there are elements that need to be enhanced
+        _each(domElements, function(index, element) {
+            var $this = $(this);
+            options = self.getFeatureOptionsForElement(feature, this);
+            if (options !== false) {
+                enhanceableElements++;
+            }
+        });
+
         if (!this.isLoaded(feature)) {
             this.load(feature, function() {
                 self.attach(feature, domElements);
@@ -349,10 +387,10 @@
                 alreadyAttached = ($this.data('fxr.'+feature) !== null && $this.data('fxr.'+feature) !== undefined);
 
             // feature is already loaded or it doesn't have an attach() method
-            if (alreadyAttached || !featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
+            if (alreadyAttached) {
                 return;
             }
-            options = self.getFeatureOptionsForElement(options, this);
+            options = self.getFeatureOptionsForElement(feature, this);
 
             if (options !== false) {
                 // add the defaults to the options list
@@ -422,7 +460,8 @@
      * @param {DOM Element}     domElement    used if the 'options' converts into a function that will be called with the domElement as argument
      * @returns {Object}        computed feature options
      */
-    Feaxures.prototype.getFeatureOptionsForElement = function(options, domElement) {
+    Feaxures.prototype.getFeatureOptionsForElement = function(feature, domElement) {
+        var options = $(domElement).attr('data-fxr-' + feature);
         if (options === 'false') {
             return false;
         } else if (options === 'true' || options === '') {
@@ -491,29 +530,27 @@
             jQuery('body').on('dom:changed', function() {
                 self.discover('body');
             });
-            _each(_features, function(index, feature) {
+            _each(_features, function(featureName, feature) {
                 _each(['click', 'focus', 'mouseover'], function(i, evt) {
                     if (evt === feature.attachEvent) {
-                        $('body').one(evt+'.feaxures', feature.selector, function(ev, data) {
-                              var elements = $(feature.selector).not($(ev.currentTarget));
-
-                              self.on('afterAttach:' + feature.name, function(e) {
-                                  // we use ev.target to determine the exact element which triggered the event
-                                  $(ev.target).trigger(evt);
-                              });
-
-                              // attach the feaxure to the rest of elements
-                              // we are doing on onBeforeAttach because a callback may prevent the feaxure for being added to the
-                              // element that has triggered the event and onAfterAttach will not be called anymore
-                              self.one('beforeAttach:' + feature.name, function() {
-                                  self.attach(feature.name, elements);
-                              });
-                              
-                              // we attch the feature only on the target now
-                              // we use ev.currentTarget to determine the element to which event was bounded
-                              self.attach(feature.name, $(ev.currentTarget));
+                        $('body').on(evt+'.feaxures', feature.selector, function(ev, data) {
+                              if (self.getFeatureOptionsForElement(featureName, ev.currentTarget) === false) {
+                                  return;
+                              }
                               ev.stopPropagation();
                               ev.preventDefault();
+
+                              var elements = $(feature.selector).not($(ev.currentTarget));
+                              self.attach(featureName, $(ev.currentTarget));
+
+                              self.one('afterAttach:' + featureName, function(e) {
+                                  // remove the delegated event to prevent from being executed again
+                                  $('body').off(evt+'.feaxures', feature.selector, ev.handler);
+                                  // trigger the event again
+                                  $(ev.target).trigger(evt);
+                                  // attach feature the to rest of the matching elements
+                                  self.attach(featureName, elements);
+                              });
                         });
                     }
                 });
