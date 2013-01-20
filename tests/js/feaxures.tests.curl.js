@@ -148,26 +148,58 @@ require(['feaxures'], function(Feaxures) {
     });
     
     test('retrieving dom element feature options', function(){
-        deepEqual(feaxures.getFeatureOptionsForElement('true'), {}, '"true" returns an empty object');
-        deepEqual(feaxures.getFeatureOptionsForElement(''), {}, 'an empty string returns an empty object');
-        equal(feaxures.getFeatureOptionsForElement('false'), false, '"false" returns false (it prevents the feature from being applied)');
+        $('#qunit-fixture').append('<div id="idElement" data-fxr-test="true"><b>content</b></div>');
+        var element = $('#idElement')[0];
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {}, '"true" returns an empty object');
+
+        $('#idElement').attr('data-fxr-test', '');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {}, 'an empty string returns an empty object');
+
+        $('#idElement').attr('data-fxr-test', 'false');
+        equal(feaxures.getFeatureOptionsForElement('test', element), false, '"false" returns false (it prevents the feature from being applied)');
         
-        deepEqual(feaxures.getFeatureOptionsForElement('var_a=value_a&var_b=value_b'), {'var_a': 'value_a', 'var_b': 'value_b'}, 'a URL query string returns an object');
-        deepEqual(feaxures.getFeatureOptionsForElement('var[a]=value_a&var[b]=value_b'), {'var': {'a': 'value_a', 'b': 'value_b'}}, 'a URL query string returns an nested object');
-        deepEqual(feaxures.getFeatureOptionsForElement('var_a=true&var_b=false&var_c=12&var_d=1.234'), {'var_a': true, 'var_b': false, 'var_c': 12, 'var_d': 1.234}, 'a URL query string returns an nested object');
+        $('#idElement').attr('data-fxr-test', 'var_a=value_a&var_b=value_b');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {'var_a': 'value_a', 'var_b': 'value_b'}, 'a URL query string returns an object');
+
+        $('#idElement').attr('data-fxr-test', 'var[a]=value_a&var[b]=value_b');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {'var': {'a': 'value_a', 'b': 'value_b'}}, 'a URL query string returns an nested object');
+
+        $('#idElement').attr('data-fxr-test', 'var_a=true&var_b=false&var_c=12&var_d=1.234');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {'var_a': true, 'var_b': false, 'var_c': 12, 'var_d': 1.234}, 'a URL query string returns an nested object');
         
-        deepEqual(feaxures.getFeatureOptionsForElement('{"a": "b"}'), {'a': 'b'}, 'a json string returns an object');
+        $('#idElement').attr('data-fxr-test', '{"a": "b"}');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {'a': 'b'}, 'a json string returns an object');
         
         $('#qunit-fixture').append('<script type="text/feaxture" id="fxtObjectTest">{"a": "b"}</script>');
-        deepEqual(feaxures.getFeatureOptionsForElement('#fxtObjectTest'), {'a': 'b'}, 'for a domelement ID that contains a json object returns the object');
+        $('#idElement').attr('data-fxr-test', '#fxtObjectTest');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {'a': 'b'}, 'for a domelement ID that contains a json object returns the object');
         
-        $('#qunit-fixture').append('<script type="text/feaxture" id="fxtFunctionTest">function(domElement){return {"a": "b"};}</script>');
-        deepEqual(feaxures.getFeatureOptionsForElement('#fxtFunctionTest'), {'a': 'b'}, 'for a domelement ID that contains a function return the result of that object');
-
         $('#qunit-fixture').append('<script type="text/feaxture" id="fxtFunctionToDomTest">function(domElement){return {"html": $(domElement).html()};}</script>');
-        $('#qunit-fixture').append('<div id="idElement"><b>content</b></div>');
-        deepEqual(feaxures.getFeatureOptionsForElement('#fxtFunctionToDomTest', $('#idElement')[0]), {'html': '<b>content</b>'}, 'when the options is a function executes it on a DOM element (the element for which we get the options)');
+        $('#idElement').attr('data-fxr-test', '#fxtFunctionToDomTest');
+        deepEqual(feaxures.getFeatureOptionsForElement('test', element), {'html': '<b>content</b>'}, 'when the options is a function executes it on a DOM element (the element for which we get the options)');
 
+    });
+
+
+    test('feature defaults is called if it is a function', function() {
+        $('#qunit-fixture').append('<div id="real-defaults" data-fxr-real="{key: \'value\'}"></div>');
+        feaxures.register('real', {
+            files: ['js!tests/js/real'],
+            defaults: function(el) {
+                return {'second_key': 'second_value'};
+            },
+            attach: function(element, options) {
+                $(element).real();
+            }
+        });
+        feaxures.attach('real', $('[data-fxr-real]'));
+        stop();
+        setTimeout(function(){
+            var options = $('#real-defaults').data('fxr.real');
+            equal(options.key, 'value', 'Feature has the proper configuration options');
+            equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
+            start();
+        }, 1000);
     });
 
     test('attach/apply feature on elements', function(){

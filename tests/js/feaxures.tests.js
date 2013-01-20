@@ -180,6 +180,27 @@ require(['feaxures'], function(Feaxures) {
 
     });
 
+    test('feature defaults is called if it is a function', function() {
+        $('#qunit-fixture').append('<div id="real-defaults" data-fxr-real="{key: \'value\'}"></div>');
+        feaxures.register('real', {
+            files: ['real'],
+            defaults: function(el) {
+                return {'second_key': 'second_value'};
+            },
+            attach: function(element, options) {
+                $(element).real();
+            }
+        });
+        feaxures.attach('real', $('[data-fxr-real]'));
+        stop();
+        setTimeout(function(){
+            var options = $('#real-defaults').data('fxr.real');
+            equal(options.key, 'value', 'Feature has the proper configuration options');
+            equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
+            start();
+        }, 1000);
+    });
+
     test('attach/apply feature on elements', function(){
         // create element that the feature will be applied to
         $.each(['a', 'b', 'c'], function(index, val) {
