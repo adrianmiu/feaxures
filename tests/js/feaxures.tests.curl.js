@@ -75,13 +75,14 @@ require(['feaxures'], function(Feaxures) {
     test('features are loaded', function() {
         stop();
         feaxures.register('real', {
-            files: ['js!tests/js/real'],
-            onLoad: function() {
-                ok(feaxures.isLoaded('real'), 'real feature was loaded');
-                start();
-            }
+            files: ['js!tests/js/real']
         });
-        feaxures.load('real');
+        var promise = feaxures.load('real');
+        console.log(promise);
+        promise.done(function() {
+            ok(true, 'feature was loaded');
+            start();
+        });
     });
     test('load callback is executed', function() {
         stop();
@@ -117,7 +118,7 @@ require(['feaxures'], function(Feaxures) {
         });
         feaxures.on('load:bereal', function() {
             feaxures.called++;
-            equal(1, feaxures.called, 'Load event triggered once');
+            equal(feaxures.called, 1, 'Load event triggered once');
         });
         feaxures.load('bereal', function() {
             feaxures.load('bereal', function() {

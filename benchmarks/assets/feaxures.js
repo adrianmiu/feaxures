@@ -222,7 +222,7 @@
      * @return {Boolean}
      */
     Feaxures.prototype.isRegistered = function(feature) {
-        return _features[feature] ? true : false;
+        return feature && _features[feature] ? true : false;
     };
 
     /**
@@ -281,35 +281,48 @@
      * [load description]
      * @param  {String}   feature  name of the feature
      * @param  {Function} callback function to be executed after the feature is loaded
+     * @return jQuery promise
      */
     Feaxures.prototype.load = function(feature, callback) {
         var self = this;
+        var dfd = $.Deferred();
+
         if (!this.isRegistered(feature)) {
             this.log('Feature ' + feature + ' is not registered');
-            return;
+            dfd.reject('not registered');
+            return dfd.promise();
         }
-        
+
         var featureDefinition = _features[feature];
-        if (typeof(featureDefinition.files) == 'function') {
+        if (typeof(featureDefinition.files) === 'function') {
             featureDefinition.files = featureDefinition.files.call(this);
         }
         if (!jQuery.isArray(featureDefinition.files)) {
             this.log('The feature "' + feature + '" does not have a valid list of dependencies');
-            return;
+            dfd.reject('not valid');
+            return dfd.promise();
         }
 
-        // feature is already marked as loaded? execute the callback and return ASAP
-        if (_loadedFeatures[feature]) {
-            if (typeof(callback) === 'function') {
-                callback.call(self);
-            }
-            return;
+        if (typeof(callback) === 'function') {
+            dfd.done(callback);
         }
 
-        var dfd = $.Deferred();
+        // feature is already marked as loaded? resolve and return the promise
+        if (_loadedFeatures[feature] === true) {
+            dfd.resolve();
+            return dfd.promise();
+        } else if (_loadedFeatures[feature] === false) {
+            dfd.reject();
+            return dfd.promise();
+        }
+
 
         // mark the feature as loaded and trigger the appropriate events
         dfd.done(function(){
+            // feature is already loaded; don't trigger the events again
+            if (_loadedFeatures[feature] === true) {
+                return;
+            }
             _loadedFeatures[feature] = true;
             self.log('Feature ' + feature + ' was loaded');
 
@@ -322,11 +335,12 @@
             self.trigger(e);
         });
 
-        if (typeof(callback) === 'function') {
-            dfd.done(callback);
-        }
-
         dfd.fail(function(err){
+            // feature is already failed loading; don't trigger the events again
+            if (_loadedFeatures[feature] === false) {
+                return;
+            }
+            _loadedFeatures[feature] = false;
             self.log('Error loading feature ' + feature);
 
             var e = jQuery.Event('loadError');
@@ -338,16 +352,14 @@
             self.trigger(e);
         });
 
-        if (this.isLoaded(feature)) {
-            dfd.resolve();
-            return;
-        }
-
         _load(featureDefinition.files, function() {
             dfd.resolve();
         }, function(err) {
+            self.log('error loading feature ' + feature, err);
             dfd.reject(err);
         });
+
+        return dfd.promise();
     };
     
     /**
@@ -359,13 +371,17 @@
     Feaxures.prototype.attach = function(feature, domElements) {
         var self = this,
             featureDefinition = _features[feature],
-            enhanceableElements = 0;
+            enhanceableElements = 0,
+            loadPromise = this.load(feature);
+
         // no point in going further if there are no domElements
         if (!domElements.length || domElements.length < 1) {
+            this.log('Feaxure "' + feature + '" has no elements to be applied to.');
             return;
         }
         // we don't have a proper attach() callback
         if (!featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
+            this.log('Feaxure "' + feature + '" does not have an attach() method.');
             return;
         }
 
@@ -377,77 +393,77 @@
                 enhanceableElements++;
             }
         });
-
-        if (!this.isLoaded(feature)) {
-            this.load(feature, function() {
-                self.attach(feature, domElements);
-            });
+        if (enhanceableElements === 0) {
+            this.log('Feaxure "' + feature + '" has no elements to be applied to.');
             return;
         }
-        _each(domElements, function(index, element) {
-            var $this = $(this),
-                // allow for feature's default options to be a function
-                defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults;
-                options = $this.attr('data-fxr-'+feature),
-                alreadyAttached = ($this.data('fxr.'+feature) !== null && $this.data('fxr.'+feature) !== undefined);
 
-            // feature is already loaded or it doesn't have an attach() method
-            if (alreadyAttached) {
-                return;
-            }
-            options = self.getFeatureOptionsForElement(feature, this);
+        loadPromise.done(function() {
+          _each(domElements, function(index, element) {
+              var $this = $(this),
+                  // allow for feature's default options to be a function
+                  defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults;
+                  options = $this.attr('data-fxr-'+feature),
+                  alreadyAttached = ($this.data('fxr.'+feature) !== null && $this.data('fxr.'+feature) !== undefined);
 
-            if (options !== false) {
-                // add the defaults to the options list
-                options = $.extend({}, defaults,  options);
+              // feature is already loaded or it doesn't have an attach() method
+              if (alreadyAttached) {
+                  return;
+              }
+              options = self.getFeatureOptionsForElement(feature, this);
 
-                // global onBeforeAttach event
-                var e = jQuery.Event('beforeAttach');
-                e.target = element;
-                e.feature = feature;
-                e.options = options;
-                self.trigger(e);
-                if (e.result === false || e.isDefaultPrevented()) {
-                    $this.attr('data-fxr-'+feature, null);
-                    $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
-                    self.log('Feature ' + feature + ' was not applied because the global before attach events prevents it');
-                    return;
-                }
+              if (options !== false) {
+                  // add the defaults to the options list
+                  options = $.extend({}, defaults,  options);
 
-                // feature's onBeforeAttach callback
-                e = jQuery.Event('beforeAttach:' + feature);
-                e.target = element;
-                e.feature = feature;
-                e.options = options;
-                self.trigger(e);
-                if (e.result === false || e.isDefaultPrevented()) {
-                    $this.attr('data-fxr-'+feature, null);
-                    $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
-                    self.log('Feature ' + feature + ' was not applied because the feature\'s before attach prevents it');
-                    return;
-                }
+                  // global onBeforeAttach event
+                  var e = jQuery.Event('beforeAttach');
+                  e.target = element;
+                  e.feature = feature;
+                  e.options = options;
+                  self.trigger(e);
+                  if (e.result === false || e.isDefaultPrevented()) {
+                      $this.attr('data-fxr-'+feature, null);
+                      $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
+                      self.log('Feature ' + feature + ' was not applied because the global before attach events prevents it');
+                      return;
+                  }
 
-                featureDefinition.attach.call(self, element, options);
-                self.log('Feature ' + feature + ' was applied to element', element);
+                  // feature's onBeforeAttach callback
+                  e = jQuery.Event('beforeAttach:' + feature);
+                  e.target = element;
+                  e.feature = feature;
+                  e.options = options;
+                  self.trigger(e);
+                  if (e.result === false || e.isDefaultPrevented()) {
+                      $this.attr('data-fxr-'+feature, null);
+                      $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
+                      self.log('Feature ' + feature + ' was not applied because the feature\'s before attach prevents it');
+                      return;
+                  }
 
-                // feature's onAfterAttach callback
-                e = jQuery.Event('afterAttach:' + feature);
-                e.target = element;
-                e.feature = feature;
-                e.options = options;
-                self.trigger(e);
-                // global onAfterAttach callback
-                e = jQuery.Event('afterAttach');
-                e.target = element;
-                e.feature = feature;
-                e.options = options;
-                self.trigger(e);
-            }
-            // clear the element attribute so discover() will not find it again
-            $this.attr('data-fxr-'+feature, null);
-            // store the computed options for further reference
-            // (eg: load more features depending on the existing features)
-            $this.data('fxr.'+feature, options);
+                  featureDefinition.attach.call(self, element, options);
+                  self.log('Feature ' + feature + ' was applied to element', element);
+
+                  // feature's onAfterAttach callback
+                  e = jQuery.Event('afterAttach:' + feature);
+                  e.target = element;
+                  e.feature = feature;
+                  e.options = options;
+                  self.trigger(e);
+                  // global onAfterAttach callback
+                  e = jQuery.Event('afterAttach');
+                  e.target = element;
+                  e.feature = feature;
+                  e.options = options;
+                  self.trigger(e);
+              }
+              // clear the element attribute so discover() will not find it again
+              $this.attr('data-fxr-'+feature, null);
+              // store the computed options for further reference
+              // (eg: load more features depending on the existing features)
+              $this.data('fxr.'+feature, options);
+          });
         });
         return this;
     };
@@ -539,6 +555,7 @@
                 _each(['click', 'focus', 'mouseover'], function(i, evt) {
                     if (evt === feature.attachEvent) {
                         $('body').on(evt+'.feaxures', feature.selector, function(ev, data) {
+                              // if the current element is not a candidate for the feature, return asap
                               if (self.getFeatureOptionsForElement(featureName, ev.currentTarget) === false) {
                                   return;
                               }
