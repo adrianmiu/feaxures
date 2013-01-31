@@ -190,14 +190,14 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        feaxures.attach('real', $('[data-fxr-real]'));
         stop();
-        setTimeout(function(){
+        var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
+        attachPromise.done(function(){
             var options = $('#real-defaults').data('fxr.real');
             equal(options.key, 'value', 'Feature has the proper configuration options');
             equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
             start();
-        }, 1000);
+        });
     });
 
     test('attach/apply feature on elements', function(){
@@ -211,9 +211,9 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        feaxures.attach('real', $('[data-fxr-real]'));
+        var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
         stop();
-        setTimeout(function(){
+        attachPromise.done(function() {
             var attached = 0;
             $('[id^="real-"]:contains(random number)').each(function() {
                 if ($(this).data('fxr.real')) {
@@ -222,7 +222,7 @@ require(['feaxures'], function(Feaxures) {
             });
             equal(attached, 2, 'Feature attached to 2 elements out of 3 candidates');
             start();
-        }, 1000);
+        });
     });
 
     test('feature is not attached if onBeforeAttach() returns false', function() {
@@ -242,8 +242,8 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        feaxures.attach('bareal', $('[data-fxr-bareal]'));
-        setTimeout(function(){
+        var attachPromise = feaxures.attach('bareal', $('[data-fxr-bareal]'));
+        attachPromise.done(function() {
             var attached = 0;
             $('[id^="bareal-"]:contains(random number)').each(function() {
                 if ($(this).data('fxr.bareal')) {
@@ -252,7 +252,7 @@ require(['feaxures'], function(Feaxures) {
             });
             equal(attached, 1, 'Feature attached to 1 elements out of 3 candidates');
             start();
-        }, 100);
+        });
     });
 
     test('onAfterAttach() is called', function(){
@@ -270,8 +270,8 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        feaxures.attach('aareal', $('[data-fxr-aareal]'));
-        setTimeout(function(){
+        var attachPromise = feaxures.attach('aareal', $('[data-fxr-aareal]'));
+        attachPromise.done(function(){
             var attached = 0;
             $('[id^="aareal-"]').each(function() {
                 if ($(this).hasClass('after-apply')) {
@@ -280,7 +280,7 @@ require(['feaxures'], function(Feaxures) {
             });
             equal(attached, 3, 'onAfterAttach() called on all 3 elements');
             start();
-        }, 100);
+        });
     });
 
     test('discover features on elements', function(){
@@ -294,9 +294,10 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        feaxures.discover('#qunit-fixture');
+        var discoverPromise = feaxures.discover('#qunit-fixture');
         stop();
-        setTimeout(function(){
+        discoverPromise.done(function(){
+            console.log(this, arguments);
             var attached = 0;
             $('[id^="morereal-"]:contains(random number)').each(function() {
                 if ($(this).data('fxr.real')) {
@@ -305,6 +306,6 @@ require(['feaxures'], function(Feaxures) {
             });
             equal(attached, 2, 'Feature discovered and attached to 2 elements out of 3 candidates');
             start();
-        }, 2000);
+        });
     });
 });

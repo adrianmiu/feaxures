@@ -62,8 +62,8 @@
       value = true;
     } else if (value === 'false') {
       value = false;
-    } else if (value == parseInt(value)) {
-      value = parseInt(value);
+    } else if (value == parseInt(value, 10)) {
+      value = parseInt(value, 10);
     } else if (value == parseFloat(value)) {
       value = parseFloat(value);
     }
@@ -289,7 +289,7 @@
 
         if (!this.isRegistered(feature)) {
             this.log('Feature ' + feature + ' is not registered');
-            dfd.reject('not registered');
+            dfd.rejectWith(self, ['Feature ' + feature + ' is not registered']);
             return dfd.promise();
         }
 
@@ -299,7 +299,7 @@
         }
         if (!jQuery.isArray(featureDefinition.files)) {
             this.log('The feature "' + feature + '" does not have a valid list of dependencies');
-            dfd.reject('not valid');
+            dfd.rejectWith(self, ['not valid']);
             return dfd.promise();
         }
 
@@ -309,10 +309,10 @@
 
         // feature is already marked as loaded? resolve and return the promise
         if (_loadedFeatures[feature] === true) {
-            dfd.resolve();
+            dfd.resolveWith(self);
             return dfd.promise();
         } else if (_loadedFeatures[feature] === false) {
-            dfd.reject();
+            dfd.rejectWith(self);
             return dfd.promise();
         }
 
@@ -353,10 +353,10 @@
         });
 
         _load(featureDefinition.files, function() {
-            dfd.resolve();
+            dfd.resolveWith(self, ['feature ' + feature + ' was loaded']);
         }, function(err) {
             self.log('error loading feature ' + feature, err);
-            dfd.reject(err);
+            dfd.rejectWith(self, [err]);
         });
 
         return dfd.promise();
@@ -372,19 +372,26 @@
         var self = this,
             featureDefinition = _features[feature],
             enhanceableElements = 0,
-            loadPromise = this.load(feature);
+            loadPromise = this.load(feature),
+            dfd = $.Deferred();
+
+        // we don't have a proper attach() callback
+        if (!featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
+            dfd.fail(function(message) {
+                self.log(message);
+            });
+            dfd.rejectWith(self, ['Feaxure "' + feature + '" does not have an attach() method.']);
+            return dfd.promise();
+        }
 
         // no point in going further if there are no domElements
         if (!domElements.length || domElements.length < 1) {
-            this.log('Feaxure "' + feature + '" has no elements to be applied to.');
-            return;
+            dfd.done(function(message) {
+                self.log(message);
+            });
+            dfd.resolve('Feaxure "' + feature + '" has no elements to be applied to.');
+            return dfd.promise();
         }
-        // we don't have a proper attach() callback
-        if (!featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
-            this.log('Feaxure "' + feature + '" does not have an attach() method.');
-            return;
-        }
-
         // first we need to determine if there are elements that need to be enhanced
         _each(domElements, function(index, element) {
             var $this = $(this);
@@ -394,8 +401,11 @@
             }
         });
         if (enhanceableElements === 0) {
-            this.log('Feaxure "' + feature + '" has no elements to be applied to.');
-            return;
+            dfd.done(function(message) {
+                self.log(message);
+            });
+            dfd.resolveWith(self, ['Feaxure "' + feature + '" has no elements to be applied to.']);
+            return dfd.promise();
         }
 
         loadPromise.done(function() {
@@ -464,8 +474,9 @@
               // (eg: load more features depending on the existing features)
               $this.data('fxr.'+feature, options);
           });
+          dfd.resolveWith(self, [{feaxureName: feature}]);
         });
-        return this;
+        return dfd.promise();
     };
 
     /**
@@ -518,16 +529,29 @@
      * @return self
      */
     Feaxures.prototype.discover = function(container) {
-        var self = this;
+        var self = this,
+            feaxuresCount = 0,
+            feaxuresAttached = 0,
+            dfd = $.Deferred();
         if (typeof(container) === 'string') {
             container = $(container);
         }
         _each(_features, function(index, value) {
             if (value.attachEvent === 'domready') {
-              self.attach(index, $(value.selector, container));
+              feaxuresCount++;
             }
         });
-        return this;
+        _each(_features, function(index, value) {
+            if (value.attachEvent === 'domready') {
+              self.attach(index, $(value.selector, container)).always(function() {
+                  feaxuresAttached++;
+                  if (feaxuresAttached === feaxuresCount) {
+                      dfd.resolveWith(self, [{feaxuresAttached: feaxuresAttached}]);
+                  }
+              });
+            }
+        });
+        return dfd.promise();
     };
 
     /**
