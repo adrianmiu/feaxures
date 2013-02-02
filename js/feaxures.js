@@ -561,7 +561,7 @@
         var self = this;
         // autoload the appropriate features
         _each(this._features, function(index, value) {
-            if (value.autoLoad === true && !this._loadedFeatures[value.name]) {
+            if (value.autoLoad === true && !self._loadedFeatures[value.name]) {
                 self.load(value.name);
             }
         });
@@ -571,7 +571,7 @@
             jQuery('body').on('dom:changed', function() {
                 self.discover('body');
             });
-            _each(this._features, function(featureName, feature) {
+            _each(self._features, function(featureName, feature) {
                 _each(['click', 'focus', 'mouseover'], function(i, evt) {
                     if (evt === feature.attachEvent) {
                         $('body').on(evt+'.feaxures', feature.selector, function(ev, data) {

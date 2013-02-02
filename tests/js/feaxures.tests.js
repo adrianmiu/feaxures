@@ -294,8 +294,8 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        var discoverPromise = feaxures.discover('#qunit-fixture');
         stop();
+        var discoverPromise = feaxures.discover('#qunit-fixture');
         discoverPromise.done(function(){
             console.log(this, arguments);
             var attached = 0;
