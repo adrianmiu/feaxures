@@ -135,14 +135,7 @@
       }
     };
 
-    var _config         = {},
-        // list of loaded features
-        _loadedFeatures = {},
-        // list of registered features
-        _features       = {},
-        _events,
-        // array traversing function that can be changed if you're not using jQuery
-        _each           = jQuery.each,
+    var _each           = jQuery.each,
         // load function (can be replaced with something else as long as the files are provided in the proper format)
         // Modernizr.load or any other resource loader may be used for this as long as the function accepts 3 arguments
         // 1. a list of resources to be loaded
@@ -151,8 +144,15 @@
         _load           = require;
 
     var Feaxures = function(config) {
+        // event hanlder using jQuery
+        this._events         = $(this);
+        // list of loaded features
+        this._loadedFeatures = {};
+        // list of registered features
+        this._features       = {};
+        // configuration options
+        this._config =       = {};
         this.config(config);
-        _events = $(this);
         return this;
     };
 
@@ -160,32 +160,28 @@
      * Event handlers using jQuery.Callbacks
      */
     Feaxures.prototype.on = function(eventName, method) {
-        _events.on(eventName, method);
+        this._events.on(eventName, method);
         return this;
     };
 
     Feaxures.prototype.one = function(eventName, method) {
-        _events.one(eventName, method);
+        this._events.one(eventName, method);
         return this;
     };
 
     Feaxures.prototype.off = function(eventName, method) {
-        _events.off(eventName, method);
+        this._events.off(eventName, method);
         return this;
     };
 
     Feaxures.prototype.trigger = function() {
         this.log('Event "' + arguments[0].type + '" was called');
-        _events.trigger.apply(_events, arguments);
+        this._events.trigger.apply(_events, arguments);
     };
 
     /**
      * Sets/retrieves configuration options. The list of all available options below
      * - debug: activate/deactivates the debug mode (some log messages are sent to the console)
-     * - onBeforeAttach: callback(element, feature, options) called before a feature is applied to a DOM element
-     * - onAfterAttach: callback(element, feature, options) called after a feature is applied to a DOM element
-     * - onLoad: callback(feature) called after a feature is loaded
-     * - onLoadError: callback(feature, error) called if a feature cannot be loaded
      *
      * @param  {String|Object} config   an object to set the configuration, a string to retrieve a configuration
      * @param  {mixed}         value    (optional) to set the configuration value of a single option
@@ -193,16 +189,16 @@
      */
     Feaxures.prototype.config = function(config) {
         if ($.isPlainObject(config)) {
-            _config = $.extend(_config, config);
+            this._config = $.extend(_config, config);
         } else if (typeof(config) == 'string') {
 
             if (arguments.length === 1) {
-                return _config[config] || false;
+                return this._config[config] || false;
             } else {
-                _config[config] = arguments[1];
+                this._config[config] = arguments[1];
             }
         } else if (config === undefined) {
-            return _config;
+            return this._config;
         }
         return this;
     };
@@ -217,12 +213,12 @@
     };
     
     /**
-     * Tests if a feature is registered
+     * Checks if a feature is registered
      * @param  {String}  feature
      * @return {Boolean}
      */
     Feaxures.prototype.isRegistered = function(feature) {
-        return feature && _features[feature] ? true : false;
+        return feature && this._features[feature] ? true : false;
     };
 
     /**
@@ -265,7 +261,7 @@
         if (typeof options.onAfterAttach === 'function') {
             this.on('afterAttach:' + feature, options.onAfterAttach);
         }
-        _features[feature] = options;
+        this._features[feature] = options;
     };
     
     /**
@@ -274,7 +270,7 @@
      * @return {Boolean}
      */
     Feaxures.prototype.isLoaded = function(feature) {
-        return _loadedFeatures[feature] ? true : false;
+        return this._loadedFeatures[feature] ? true : false;
     };
     
     /**
@@ -288,18 +284,18 @@
         var dfd = $.Deferred();
 
         if (!this.isRegistered(feature)) {
-            this.log('Feature ' + feature + ' is not registered');
-            dfd.rejectWith(self, ['Feature ' + feature + ' is not registered']);
+            this.log('Feaxure ' + feature + ' is not registered');
+            dfd.rejectWith(self, ['Feaxure ' + feature + ' is not registered']);
             return dfd.promise();
         }
 
-        var featureDefinition = _features[feature];
+        var featureDefinition = this._features[feature];
         if (typeof(featureDefinition.files) === 'function') {
             featureDefinition.files = featureDefinition.files.call(this);
         }
         if (!jQuery.isArray(featureDefinition.files)) {
-            this.log('The feature "' + feature + '" does not have a valid list of dependencies');
-            dfd.rejectWith(self, ['not valid']);
+            this.log('The feaxure "' + feature + '" does not have a valid list of dependencies');
+            dfd.rejectWith(self, ['The feaxure "' + feature + '" does not have a valid list of dependencies']);
             return dfd.promise();
         }
 
@@ -308,10 +304,10 @@
         }
 
         // feature is already marked as loaded? resolve and return the promise
-        if (_loadedFeatures[feature] === true) {
+        if (this._loadedFeatures[feature] === true) {
             dfd.resolveWith(self);
             return dfd.promise();
-        } else if (_loadedFeatures[feature] === false) {
+        } else if (this._loadedFeatures[feature] === false) {
             dfd.rejectWith(self);
             return dfd.promise();
         }
@@ -320,11 +316,11 @@
         // mark the feature as loaded and trigger the appropriate events
         dfd.done(function(){
             // feature is already loaded; don't trigger the events again
-            if (_loadedFeatures[feature] === true) {
+            if (this._loadedFeatures[feature] === true) {
                 return;
             }
-            _loadedFeatures[feature] = true;
-            self.log('Feature ' + feature + ' was loaded');
+            this._loadedFeatures[feature] = true;
+            self.log('Feaxure ' + feature + ' was loaded');
 
             var e = jQuery.Event('load');
             e.feature = feature;
@@ -337,11 +333,11 @@
 
         dfd.fail(function(err){
             // feature is already failed loading; don't trigger the events again
-            if (_loadedFeatures[feature] === false) {
+            if (this._loadedFeatures[feature] === false) {
                 return;
             }
-            _loadedFeatures[feature] = false;
-            self.log('Error loading feature ' + feature);
+            this._loadedFeatures[feature] = false;
+            self.log('Error loading feaxure ' + feature);
 
             var e = jQuery.Event('loadError');
             e.feature = feature;
@@ -353,9 +349,9 @@
         });
 
         _load(featureDefinition.files, function() {
-            dfd.resolveWith(self, ['feature ' + feature + ' was loaded']);
+            dfd.resolveWith(self, ['Feaxure ' + feature + ' was loaded']);
         }, function(err) {
-            self.log('error loading feature ' + feature, err);
+            self.log('Error loading feaxure ' + feature, err);
             dfd.rejectWith(self, [err]);
         });
 
@@ -370,7 +366,7 @@
      */
     Feaxures.prototype.attach = function(feature, domElements) {
         var self = this,
-            featureDefinition = _features[feature],
+            featureDefinition = this._features[feature],
             enhanceableElements = 0,
             loadPromise = this.load(feature),
             dfd = $.Deferred();
@@ -435,7 +431,7 @@
                   if (e.result === false || e.isDefaultPrevented()) {
                       $this.attr('data-fxr-'+feature, null);
                       $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
-                      self.log('Feature ' + feature + ' was not applied because the global before attach events prevents it');
+                      self.log('Feaxure ' + feature + ' was not applied because the global before attach events prevents it');
                       return;
                   }
 
@@ -448,12 +444,12 @@
                   if (e.result === false || e.isDefaultPrevented()) {
                       $this.attr('data-fxr-'+feature, null);
                       $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
-                      self.log('Feature ' + feature + ' was not applied because the feature\'s before attach prevents it');
+                      self.log('Feaxure ' + feature + ' was not applied because the feature\'s before attach prevents it');
                       return;
                   }
 
                   featureDefinition.attach.call(self, element, options);
-                  self.log('Feature ' + feature + ' was applied to element', element);
+                  self.log('Feaxure ' + feature + ' was applied to element', element);
 
                   // feature's onAfterAttach callback
                   e = jQuery.Event('afterAttach:' + feature);
@@ -536,12 +532,12 @@
         if (typeof(container) === 'string') {
             container = $(container);
         }
-        _each(_features, function(index, value) {
+        _each(this._features, function(index, value) {
             if (value.attachEvent === 'domready') {
               feaxuresCount++;
             }
         });
-        _each(_features, function(index, value) {
+        _each(this._features, function(index, value) {
             if (value.attachEvent === 'domready') {
               self.attach(index, $(value.selector, container)).always(function() {
                   feaxuresAttached++;
@@ -564,8 +560,8 @@
     Feaxures.prototype.initialize = function() {
         var self = this;
         // autoload the appropriate features
-        _each(_features, function(index, value) {
-            if (value.autoLoad === true && !_loadedFeatures[value.name]) {
+        _each(this._features, function(index, value) {
+            if (value.autoLoad === true && !this._loadedFeatures[value.name]) {
                 self.load(value.name);
             }
         });
@@ -575,7 +571,7 @@
             jQuery('body').on('dom:changed', function() {
                 self.discover('body');
             });
-            _each(_features, function(featureName, feature) {
+            _each(this._features, function(featureName, feature) {
                 _each(['click', 'focus', 'mouseover'], function(i, evt) {
                     if (evt === feature.attachEvent) {
                         $('body').on(evt+'.feaxures', feature.selector, function(ev, data) {
