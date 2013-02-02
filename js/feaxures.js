@@ -151,7 +151,7 @@
         // list of registered features
         this._features       = {};
         // configuration options
-        this._config =       = {};
+        this._config         = {};
         this.config(config);
         return this;
     };
@@ -176,7 +176,7 @@
 
     Feaxures.prototype.trigger = function() {
         this.log('Event "' + arguments[0].type + '" was called');
-        this._events.trigger.apply(_events, arguments);
+        this._events.trigger.apply(this._events, arguments);
     };
 
     /**
@@ -189,7 +189,7 @@
      */
     Feaxures.prototype.config = function(config) {
         if ($.isPlainObject(config)) {
-            this._config = $.extend(_config, config);
+            this._config = $.extend(this._config, config);
         } else if (typeof(config) == 'string') {
 
             if (arguments.length === 1) {

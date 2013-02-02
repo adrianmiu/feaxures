@@ -211,8 +211,8 @@ require(['feaxures'], function(Feaxures) {
                 $(element).real();
             }
         });
-        var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
         stop();
+        var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
         attachPromise.done(function() {
             var attached = 0;
             $('[id^="real-"]:contains(random number)').each(function() {
