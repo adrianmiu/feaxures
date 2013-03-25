@@ -10,9 +10,10 @@
   <div id="qunit-fixture"></div>
   <script src="js/qunit.js"></script>
   <script src="../js/curl.js"></script>
+  <script src="../js/jquery.js"></script>
   <script>
     curl({
-      'baseUrl': '/_projects/fxr/feaxures/js',
+      'baseUrl': '../js',
       'paths': {
         'css!' : '../tests/css',
         'tests': '../tests'
@@ -20,6 +21,7 @@
       'apiName': 'require'
     });
   </script>
+  <script src="../js/feaxures.js"></script>
   <script src="js/feaxures.tests.curl.js"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['jquery'], function (jQuery) {
+        define('feaxures', ['jquery'], function (jQuery) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
@@ -22,7 +22,7 @@
         root.Feaxures = factory(root.jQuery);
     }
 }(this, function (jQuery) {
-
+    "use strict";
     /**
      * taken from http://phpjs.org/functions/parse_str/
      * improved so it converts strings like 'true' and 'false' to boolean values
@@ -390,8 +390,8 @@
         }
         // first we need to determine if there are elements that need to be enhanced
         _each(domElements, function(index, element) {
-            var $this = $(this);
-            options = self.getFeatureOptionsForElement(feature, this);
+            var $this = $(this),
+                options = self.getFeatureOptionsForElement(feature, this);
             if (options !== false) {
                 enhanceableElements++;
             }
@@ -408,7 +408,7 @@
           _each(domElements, function(index, element) {
               var $this = $(this),
                   // allow for feature's default options to be a function
-                  defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults;
+                  defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults,
                   options = $this.attr('data-fxr-'+feature),
                   alreadyAttached = ($this.data('fxr.'+feature) !== null && $this.data('fxr.'+feature) !== undefined);
 
