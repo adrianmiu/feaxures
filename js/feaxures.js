@@ -11,34 +11,35 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('feaxures', ['jquery'], function (jQuery) {
+        define('feaxures', function () {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.Feaxures = factory(jQuery));
+
+            return (root.Feaxures = factory());
         });
     } else {
         // Browser globals
-        root.Feaxures = factory(root.jQuery);
+        root.Feaxures = factory();
     }
-}(this, function (jQuery) {
+}(this, function () {
     "use strict";
     /**
      * taken from http://phpjs.org/functions/parse_str/
      * improved so it converts strings like 'true' and 'false' to boolean values
      * and numbers into numbers
      */
-    var parse_str = function(str, array) {
+    var parseQueryString = function(str, array) {
     // %        note 1: When no argument is specified, will put variables in global scope.
-    // %        note 1: When a particular argument has been passed, and the returned value is different parse_str of PHP. For example, a=b=c&d====c
+    // %        note 1: When a particular argument has been passed, and the returned value is different parseQueryString of PHP. For example, a=b=c&d====c
     // *     example 1: var arr = {};
-    // *     example 1: parse_str('first=foo&second=bar', arr);
+    // *     example 1: parseQueryString('first=foo&second=bar', arr);
     // *     results 1: arr == { first: 'foo', second: 'bar' }
     // *     example 2: var arr = {};
-    // *     example 2: parse_str('str_a=Jack+and+Jill+didn%27t+see+the+well.', arr);
+    // *     example 2: parseQueryString('str_a=Jack+and+Jill+didn%27t+see+the+well.', arr);
     // *     results 2: arr == { str_a: "Jack and Jill didn't see the well." }
     // *     example 3: var abc = {3:'a'};
-    // *     example 3: parse_str('abc[a][b]["c"]=def&abc[q]=t+5');
+    // *     example 3: parseQueryString('abc[a][b]["c"]=def&abc[q]=t+5');
     // *     results 3: JSON.stringify(abc) === '{"3":"a","a":{"b":{"c":"def"}},"q":"t 5"}';
 
 
@@ -135,17 +136,131 @@
       }
     };
 
-    var _each           = jQuery.each,
+    // Evaluates a script in a global context
+	// Workarounds based on findings by Jim Driscoll
+	// http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-context
+	var globalEval = function( data ) {
+		if ( data && jQuery.trim( data ) ) {
+			// We use execScript on Internet Explorer
+			// We use an anonymous function so that context is window
+			// rather than jQuery in Firefox
+			( window.execScript || function( data ) {
+				window[ "eval" ].call( window, data );
+			} )( data );
+		}
+	};
+    
+    /**
+     * Minimalist implementation of Promises. Borrowed from here:
+     * https://gist.github.com/814052/690a6b41dc8445479676b347f1ed49f4fd0b1637
+     * This will be used in case the $.Deferred is missing (ie: zepto instead of jQuery)
+     * @returns {_L25.Promise}
+     */
+    function Deferred () {
+        this._thens = [];
+    }
+    Deferred.prototype = {
+
+        /* This is the "front end" API. */
+
+        // then(onResolve, onReject): Code waiting for this promise uses the
+        // then() method to be notified when the promise is complete. There
+        // are two completion callbacks: onReject and onResolve. A more
+        // robust promise implementation will also have an onProgress handler.
+        then: function (onResolve, onReject) {
+            // capture calls to then()
+            this._thens.push({ resolve: onResolve, reject: onReject });
+            return this;
+        },
+
+        done: function(onResolve) {
+            return this.then(onResolve, null);
+        },
+                
+        fail: function(onReject) {
+            return this.then(null, onReject);
+        },
+                
+        always: function(onAnything) {
+            return this.then(onAnything, onAnything);
+        },
+                
+        promise: function() {
+            var self = this,
+                promise = {
+                    done: function() { return self.done.apply(self, arguments); },
+                    fail: function() { return self.fail.apply(self, arguments); },
+                    always: function() { return self.always.apply(self, arguments); }
+                };
+            return promise;
+        },
+
+        // Some promise implementations also have a cancel() front end API that
+        // calls all of the onReject() callbacks (aka a "cancelable promise").
+        // cancel: function (reason) {},
+
+        /* This is the "back end" API. */
+
+        // resolve(resolvedValue): The resolve() method is called when a promise
+        // is resolved (duh). The resolved value (if any) is passed by the resolver
+        // to this method. All waiting onResolve callbacks are called
+        // and any future ones are, too, each being passed the resolved value.
+        resolve: function (val) { this._complete('resolve', val); },
+                
+        resolveWith: function(obj, val) { this._complete('resolve', val, obj); },
+
+        // reject(exception): The reject() method is called when a promise cannot
+        // be resolved. Typically, you'd pass an exception as the single parameter,
+        // but any other argument, including none at all, is acceptable.
+        // All waiting and all future onReject callbacks are called when reject()
+        // is called and are passed the exception parameter.
+        reject: function (ex) { this._complete('reject', ex); },
+                
+        rejectWith: function (obj, ex) { this._complete('reject', ex, obj); },
+
+        // Some promises may have a progress handler. The back end API to signal a
+        // progress "event" has a single parameter. The contents of this parameter
+        // could be just about anything and is specific to your implementation.
+        // progress: function (data) {},
+
+        /* "Private" methods. */
+
+        _complete: function (which, arg, obj) {
+            // switch over to sync then()
+            this.then = which === 'resolve' ?
+                function (resolve, reject) { resolve(arg); } :
+                function (resolve, reject) { reject(arg); };
+            // disallow multiple calls to resolve or reject
+            this.resolve = this.reject = 
+                function () { throw new Error('Promise already completed.'); };
+            // complete all waiting (async) then()s
+            var aThen, i = 0;
+            while (aThen = this._thens[i++]) { aThen[which] && aThen[which].call(obj || null, arg); }
+            delete this._thens;
+        }
+
+    };
+
+    var isObject = function(obj) {
+        return obj === Object(obj);
+    };
+    
+    var isArray = Array.isArray || function(obj) {
+        return toString.call(obj) == '[object Array]';
+    };
+
+    var _each           = $.each,
         // load function (can be replaced with something else as long as the files are provided in the proper format)
         // Modernizr.load or any other resource loader may be used for this as long as the function accepts 3 arguments
         // 1. a list of resources to be loaded
         // 2. a success callback
         // 3. a fail callback (optional)
-        _load           = require;
+        _load           = window.require,
+        Deferred        = (!window.jQuery || !window.jQuery.Deferred) ? Deferred : function() { return jQuery.Deferred();};
 
     var Feaxures = function(config) {
         // event hanlder using jQuery
-        this._events         = $(this);
+        this._events         = $(document);
         // list of loaded features
         this._loadedFeatures = {};
         // list of registered features
@@ -157,7 +272,7 @@
     };
 
     /**
-     * Event handlers using jQuery.Callbacks
+     * Event handlers using $.Callbacks
      */
     Feaxures.prototype.on = function(eventName, method) {
         this._events.on(eventName, method);
@@ -281,7 +396,7 @@
      */
     Feaxures.prototype.load = function(feature, callback) {
         var self = this;
-        var dfd = $.Deferred();
+        var dfd = new Deferred();
 
         if (!this.isRegistered(feature)) {
             this.log('Feaxure ' + feature + ' is not registered');
@@ -293,7 +408,7 @@
         if (typeof(featureDefinition.files) === 'function') {
             featureDefinition.files = featureDefinition.files.call(this);
         }
-        if (!jQuery.isArray(featureDefinition.files)) {
+        if (!isArray(featureDefinition.files)) {
             this.log('The feaxure "' + feature + '" does not have a valid list of dependencies');
             dfd.rejectWith(self, ['The feaxure "' + feature + '" does not have a valid list of dependencies']);
             return dfd.promise();
@@ -322,11 +437,11 @@
             this._loadedFeatures[feature] = true;
             self.log('Feaxure ' + feature + ' was loaded');
 
-            var e = jQuery.Event('load');
+            var e = $.Event('load');
             e.feature = feature;
             self.trigger(e);
 
-            e = jQuery.Event('load:' + feature);
+            e = $.Event('load:' + feature);
             e.feature = feature;
             self.trigger(e);
         });
@@ -339,11 +454,11 @@
             this._loadedFeatures[feature] = false;
             self.log('Error loading feaxure ' + feature);
 
-            var e = jQuery.Event('loadError');
+            var e = $.Event('loadError');
             e.feature = feature;
             self.trigger(e);
 
-            e = jQuery.Event('loadError:' + feature);
+            e = $.Event('loadError:' + feature);
             e.feature = feature;
             self.trigger(e);
         });
@@ -369,7 +484,7 @@
             featureDefinition = this._features[feature],
             enhanceableElements = 0,
             loadPromise = this.load(feature),
-            dfd = $.Deferred();
+            dfd = new Deferred();
 
         // we don't have a proper attach() callback
         if (!featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
@@ -423,10 +538,11 @@
                   options = $.extend({}, defaults,  options);
 
                   // global onBeforeAttach event
-                  var e = jQuery.Event('beforeAttach');
-                  e.target = element;
-                  e.feature = feature;
-                  e.options = options;
+                  var e = $.Event('beforeAttach', {
+                      element: element,
+                      feature: feature,
+                      options: options
+                  });
                   self.trigger(e);
                   if (e.result === false || e.isDefaultPrevented()) {
                       $this.attr('data-fxr-'+feature, null);
@@ -436,12 +552,13 @@
                   }
 
                   // feature's onBeforeAttach callback
-                  e = jQuery.Event('beforeAttach:' + feature);
-                  e.target = element;
-                  e.feature = feature;
-                  e.options = options;
+                  e = $.Event('beforeAttach:' + feature, {
+                      element: element,
+                      feature: feature,
+                      options: options
+                  });
                   self.trigger(e);
-                  if (e.result === false || e.isDefaultPrevented()) {
+                  if (e.returnValue === false || e.isDefaultPrevented()) {
                       $this.attr('data-fxr-'+feature, null);
                       $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
                       self.log('Feaxure ' + feature + ' was not applied because the feature\'s before attach prevents it');
@@ -452,14 +569,14 @@
                   self.log('Feaxure ' + feature + ' was applied to element', element);
 
                   // feature's onAfterAttach callback
-                  e = jQuery.Event('afterAttach:' + feature);
-                  e.target = element;
+                  e = $.Event('afterAttach:' + feature);
+                  e.element = element;
                   e.feature = feature;
                   e.options = options;
                   self.trigger(e);
                   // global onAfterAttach callback
-                  e = jQuery.Event('afterAttach');
-                  e.target = element;
+                  e = $.Event('afterAttach');
+                  e.element = element;
                   e.feature = feature;
                   e.options = options;
                   self.trigger(e);
@@ -497,14 +614,14 @@
         } else if (options.substr(0,1) == '#') {
             options = $(options).text();
         }
-        options = jQuery.trim(options);
+        options = $.trim(options);
         if (options.substr(0, 1) == '{') {
             var o = {};
             eval('o = ' + options + ';');
             options = o;
         } else if (options.substr(0, 8) == 'function') {
             var funcName = '_tmpFunc' + Math.floor(Math.random()*1000000);
-            $.globalEval('var ' + funcName + ' = ' + options);
+            globalEval('var ' + funcName + ' = ' + options);
             if (typeof window[funcName] !== 'function') {
                 self.log('value could not be converted into a function: ' + options);
                 return false;
@@ -513,7 +630,7 @@
             window[funcName] = void 0; delete window[funcName]; // clean up
         } else {
             var arr = {};
-            parse_str(options, arr);
+            parseQueryString(options, arr);
             options = arr;
         }
         return options;
@@ -528,7 +645,7 @@
         var self = this,
             feaxuresCount = 0,
             feaxuresAttached = 0,
-            dfd = $.Deferred();
+            dfd = new Deferred();
         if (typeof(container) === 'string') {
             container = $(container);
         }

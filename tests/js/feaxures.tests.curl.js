@@ -79,7 +79,6 @@ require(['feaxures'], function(Feaxures) {
             files: ['js!tests/js/real']
         });
         var promise = feaxures.load('real');
-        console.log(promise);
         promise.done(function() {
             ok(true, 'feature was loaded');
             start();
@@ -182,29 +181,34 @@ require(['feaxures'], function(Feaxures) {
 
     });
 
-
-    test('feature defaults is called if it is a function', function() {
-        $('#qunit-fixture').append('<div id="real-defaults" data-fxr-real="{key: \'value\'}"></div>');
-        feaxures.register('real', {
-            files: ['js!tests/js/real'],
-            defaults: function(el) {
-                return {'second_key': 'second_value'};
-            },
-            attach: function(element, options) {
-                $(element).real();
-            }
+    if (jQuery.Deferred) {
+        /**
+         * This test fails on ZEPTO because of how $.data() method works
+         * (ie: it uses the data- attribute) so we cannot verify the final options
+         */
+        test('feature defaults is called if it is a function', function() {
+            $('#qunit-fixture').append('<div id="real-defaults" data-fxr-real="{key: \'value\'}"></div>');
+            feaxures.register('real', {
+                files: ['js!tests/js/real'],
+                defaults: function(el) {
+                    return {'second_key': 'second_value'};
+                },
+                attach: function(element, options) {
+                    $(element).real();
+                }
+            });
+            feaxures.attach('real', $('[data-fxr-real]'));
+            stop();
+            var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
+            attachPromise.done(function(){
+                var options = $('#real-defaults').data('fxr.real');
+                equal(options.key, 'value', 'Feature has the proper configuration options');
+                equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
+                start();
+            });
         });
-        feaxures.attach('real', $('[data-fxr-real]'));
-        stop();
-        var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
-        attachPromise.done(function(){
-            var options = $('#real-defaults').data('fxr.real');
-            equal(options.key, 'value', 'Feature has the proper configuration options');
-            equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
-            start();
-        });
-    });
-
+    }
+    
     test('attach/apply feature on elements', function(){
         // create element that the feature will be applied to
         $.each(['a', 'b', 'c'], function(index, val) {
@@ -220,7 +224,7 @@ require(['feaxures'], function(Feaxures) {
         var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
         attachPromise.done(function() {
             var attached = 0;
-            $('[id^="real-"]:contains(random number)').each(function() {
+            $('#real-a, #real-b, #real-c').each(function() {
                 if ($(this).data('fxr.real')) {
                     attached++;
                 }
@@ -242,9 +246,10 @@ require(['feaxures'], function(Feaxures) {
                 console.log(arguments);
             },
             onBeforeAttach: function(event) {
-                if ($(event.target).attr('id') !== 'bareal-a') {
-                    event.result = false;
+                if ($(event.element).attr('id') !== 'bareal-a') {
+                    return false;
                 }
+                return true;
             },
             attach: function(element, options) {
                 $(element).real();
@@ -253,7 +258,7 @@ require(['feaxures'], function(Feaxures) {
         var attachPromise = feaxures.attach('bareal', $('[data-fxr-bareal]'));
         attachPromise.done(function() {
             var attached = 0;
-            $('[id^="bareal-"]:contains(random number)').each(function() {
+            $('#bareal-a, #bareal-b, #bareal-c').each(function() {
                 if ($(this).data('fxr.bareal')) {
                     attached++;
                 }
@@ -272,7 +277,7 @@ require(['feaxures'], function(Feaxures) {
         feaxures.register('aareal', {
             files: ['js!tests/js/real'],
             onAfterAttach: function(event) {
-                $(event.target).addClass('after-apply');
+                $(event.element).addClass('after-apply');
             },
             attach: function(element, options) {
                 $(element).real();
@@ -307,7 +312,7 @@ require(['feaxures'], function(Feaxures) {
         discoverPromise.done(function(){
             console.log(this, arguments);
             var attached = 0;
-            $('[id^="morereal-"]:contains(random number)').each(function() {
+            $('#morereal-a, #morereal-b, #morereal-c').each(function() {
                 if ($(this).data('fxr.real')) {
                     attached++;
                 }

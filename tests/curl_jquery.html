@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Feaxures Tests</title>
+  <link rel="stylesheet" href="css/qunit.css">
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+  <script src="js/qunit.js"></script>
+  <script src="../js/jquery.js"></script>
+  <script src="../js/feaxures.js"></script>
+  <script src="../js/curl.js"></script>
+  <script>
+    curl({
+      'baseUrl': '../js',
+      'paths': {
+        'css!' : '../tests/css',
+        'tests': '../tests'
+      },
+      'apiName': 'require'
+    });
+    if (!jQuery && $) {
+        var jQuery = $;
+    }
+  </script>
+  <script src="js/feaxures.tests.curl.js"></script>
+</body>
+</html>
