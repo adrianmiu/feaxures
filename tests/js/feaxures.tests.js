@@ -225,7 +225,7 @@ require(['feaxures'], function(Feaxures) {
         });
     });
 
-    test('feature is not attached if onBeforeAttach() returns false', function() {
+    test('feature is not attached if attachCondition() returns false', function() {
         stop();
         // create element that the feature will be applied to
         $.each(['a', 'b', 'c'], function(index, val) {
@@ -233,10 +233,14 @@ require(['feaxures'], function(Feaxures) {
         });
         feaxures.register('bareal', {
             files: ['real'],
-            onBeforeAttach: function(event) {
-                if ($(event.target).attr('id') !== 'bareal-a') {
-                    event.result = false;
+            onLoadError: function() {
+                console.log(arguments);
+            },
+            attachCondition: function(element) {
+                if ($(element).attr('id') !== 'bareal-a') {
+                    return false;
                 }
+                return true;
             },
             attach: function(element, options) {
                 $(element).real();
@@ -245,7 +249,7 @@ require(['feaxures'], function(Feaxures) {
         var attachPromise = feaxures.attach('bareal', $('[data-fxr-bareal]'));
         attachPromise.done(function() {
             var attached = 0;
-            $('[id^="bareal-"]:contains(random number)').each(function() {
+            $('#bareal-a, #bareal-b, #bareal-c').each(function() {
                 if ($(this).data('fxr.bareal')) {
                     attached++;
                 }
@@ -255,7 +259,7 @@ require(['feaxures'], function(Feaxures) {
         });
     });
 
-    test('onAfterAttach() is called', function(){
+    test('onAttach() is called', function(){
         stop();
         // create element that the feature will be applied to
         $.each(['a', 'b', 'c'], function(index, val) {
@@ -263,8 +267,8 @@ require(['feaxures'], function(Feaxures) {
         });
         feaxures.register('aareal', {
             files: function(){ return ['real']; },
-            onAfterAttach: function(event) {
-                $(event.target).addClass('after-apply');
+            onAttach: function(event) {
+                $(event.element).addClass('after-apply');
             },
             attach: function(element, options) {
                 $(element).real();
@@ -278,7 +282,36 @@ require(['feaxures'], function(Feaxures) {
                     attached++;
                 }
             });
-            equal(attached, 3, 'onAfterAttach() called on all 3 elements');
+            equal(attached, 3, 'onAttach() called on all 3 elements');
+            start();
+        });
+    });
+
+    test('feature is detached and onDetach() is called', function() {
+        stop();
+        window.attachDerealFeature = true;
+        $('#qunit-fixture').append('<div id="dereal" data-fxr-dereal=""></div>');
+        feaxures.register('dereal', {
+            files: ['real'],
+            attachCondition: function(element) {
+                return window.attachDerealFeature === true;
+            },
+            attach: function(element, options) {
+                $(element).real();
+            },
+            detach: function(element) {
+                equal(true, true, 'detach() method was called');
+            },
+            onDetach: function() {
+                equal(true, true, 'onDetach() was called');
+            }
+        });
+        var attachPromise = feaxures.attach('dereal', $('[data-fxr-dereal]'));
+        attachPromise.done(function(){
+            notEqual($('#dereal').data('fxr.dereal'), null, 'feature is attached to element');
+            window.attachDerealFeature = false;
+            $('body').trigger('dom:changed');
+            equal($('#dereal').data('fxr.dereal'), null, 'feature is detached from element');
             start();
         });
     });

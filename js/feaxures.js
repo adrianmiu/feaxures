@@ -137,18 +137,18 @@
     };
 
     // Evaluates a script in a global context
-	// Workarounds based on findings by Jim Driscoll
-	// http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-context
-	var globalEval = function( data ) {
-		if ( data && jQuery.trim( data ) ) {
-			// We use execScript on Internet Explorer
-			// We use an anonymous function so that context is window
-			// rather than jQuery in Firefox
-			( window.execScript || function( data ) {
-				window[ "eval" ].call( window, data );
-			} )( data );
-		}
-	};
+  	// Workarounds based on findings by Jim Driscoll
+  	// http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-context
+  	var globalEval = function( data ) {
+  		if ( data && jQuery.trim( data ) ) {
+  			// We use execScript on Internet Explorer
+  			// We use an anonymous function so that context is window
+  			// rather than jQuery in Firefox
+  			( window.execScript || function( data ) {
+  				window[ "eval" ].call( window, data );
+  			} )( data );
+  		}
+  	};
     
     /**
      * Minimalist implementation of Promises. Borrowed from here:
@@ -256,7 +256,7 @@
         // 2. a success callback
         // 3. a fail callback (optional)
         _load           = window.require,
-        Deferred        = (!window.jQuery || !window.jQuery.Deferred) ? Deferred : function() { return jQuery.Deferred();};
+        Deferred        = (window.jQuery && window.jQuery.Deferred) ? function() { return jQuery.Deferred();} : Deferred;
 
     var Feaxures = function(config) {
         // event hanlder using jQuery
@@ -352,17 +352,22 @@
             'files'       : [],
             // default options for the feature
             'defaults'    : {},
-            // when to attach the elements (domready, click, hover, focus)
+            // DOM event when to attach the elements (domready, click, hover, focus)
             'attachEvent' : 'domready',
+            // condition to check whether the feature should be attached to the element
+            // must be truthy or a callback that returns a truthy value
+            // if it's a function it will be used to determine if the feature should be detached as well
+            // assuming the feature's detach property is a function
+            'attachCondition': true,
+            'detach'      : null,
             // callback to be executed after the feature's files are loaded
             'onLoad'      : null,
             // callback to be executed if there are errors while loading the files
             'onLoadError' : null,
-            // callback to be executed before a feature is applied to a DOM element
-            // if it returns false the feature is not applied anymore
-            'onBeforeAttach' : null,
-            // callback to be executed after a feature is applied to  a DOM element
-            'onAfterAttach'  : null
+            // callback to be executed after a feature is applied to a DOM element
+            'onAttach'    : null,
+            // callback to be executed after a feature is removed from a DOM element
+            'onDetach'    : null
         }, options, {'name': feature});
         if (typeof options.onLoad === 'function') {
             this.on('load:' + feature, options.onLoad);
@@ -370,15 +375,15 @@
         if (typeof options.onLoadError === 'function') {
             this.on('loadError:' + feature, options.onLoadError);
         }
-        if (typeof options.onBeforeAttach === 'function') {
-            this.on('beforeAttach:' + feature, options.onBeforeAttach);
+        if (typeof options.onAttach === 'function') {
+            this.on('attach:' + feature, options.onAttach);
         }
-        if (typeof options.onAfterAttach === 'function') {
-            this.on('afterAttach:' + feature, options.onAfterAttach);
+        if (typeof options.onDetach === 'function') {
+            this.on('detach:' + feature, options.onDetach);
         }
         this._features[feature] = options;
     };
-    
+
     /**
      * tests if a feature has been loaded
      * @param  {String}  feature
@@ -387,7 +392,7 @@
     Feaxures.prototype.isLoaded = function(feature) {
         return this._loadedFeatures[feature] ? true : false;
     };
-    
+
     /**
      * [load description]
      * @param  {String}   feature  name of the feature
@@ -472,7 +477,105 @@
 
         return dfd.promise();
     };
-    
+
+    Feaxures.prototype._detachFromElement = function(feature, element) {
+        var self = this,
+            $el = $(element),
+            featureDefinition = this._features[feature],
+            isDetachable = false;
+
+        isDetachable = typeof featureDefinition.attachCondition === 'function' &&
+              typeof featureDefinition.detach === 'function' &&
+              featureDefinition.attachCondition.call(featureDefinition, element) == false;
+
+        if (!isDetachable) {
+            return;
+        }
+
+        featureDefinition.detach.call(this, element);
+        $el.data('fxr.'+feature, null);
+        this.log('Feaxure ' + feature + ' was applied to element', element);
+
+        // the feature is detached, remove the event callback
+        $('body').off('dom:changed', function() {
+          self._detachFromElement(feature, element);
+      });
+
+        // feature's onAttach event
+        var e = $.Event('detach:' + feature);
+        e.element = element;
+        e.feature = feature;
+        this.trigger(e);
+
+        // global onAttach event
+        e = $.Event('detach');
+        e.element = element;
+        e.feature = feature;
+        this.trigger(e);
+    };
+
+    /**
+     * Attach a feature to an element. Assumes the files are already loaded.
+     * 
+     * @param  {object}      -featureDefinition
+     * @param  {DOMelement} element
+     * @return {void}
+     */
+    Feaxures.prototype._attachToElement = function(feature, element) {
+        var self = this,
+            $el = $(element),
+            featureDefinition = this._features[feature],
+            // allow for feature's default options to be a function
+            defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults,
+            options = $el.attr('data-fxr-'+feature),
+            alreadyAttached = ($el.data('fxr.'+feature) !== null && $el.data('fxr.'+feature) !== undefined);
+
+        // feature is already loaded or it doesn't have an attach() method
+        if (alreadyAttached) {
+            return;
+        }
+        var isAttachable = typeof featureDefinition.attachCondition === 'function' ?
+                featureDefinition.attachCondition.call(featureDefinition, element) :
+                featureDefinition.attachCondition;
+        var isDetachable = typeof featureDefinition.attachCondition === 'function' && typeof featureDefinition.detach === 'function';
+        // feature is attachable?
+        if (!isAttachable) {
+            return;
+        }
+
+        options = this.getFeatureOptionsForElement(feature, element);
+
+        if (options !== false) {
+            // add the defaults to the options list
+            options = $.extend({}, defaults,  options);
+
+            featureDefinition.attach.call(this, element, options);
+            // store the computed options for further reference
+            $el.data('fxr.'+feature, options);
+            this.log('Feaxure ' + feature + ' was applied to element', element);
+
+            if (isDetachable) {
+                $('body').on('dom:changed', function() {
+                    self._detachFromElement(feature, element);
+                });
+            }
+
+            // feature's onAttach event
+            var e = $.Event('attach:' + feature);
+            e.element = element;
+            e.feature = feature;
+            e.options = options;
+            this.trigger(e);
+
+            // global onAttach event
+            e = $.Event('attach');
+            e.element = element;
+            e.feature = feature;
+            e.options = options;
+            this.trigger(e);
+        }
+    };
+
     /**
      * Attach a feature on a selection of DOM elements
      * @param  {String}   feature     the name of the feature
@@ -521,71 +624,7 @@
 
         loadPromise.done(function() {
           _each(domElements, function(index, element) {
-              var $this = $(this),
-                  // allow for feature's default options to be a function
-                  defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults,
-                  options = $this.attr('data-fxr-'+feature),
-                  alreadyAttached = ($this.data('fxr.'+feature) !== null && $this.data('fxr.'+feature) !== undefined);
-
-              // feature is already loaded or it doesn't have an attach() method
-              if (alreadyAttached) {
-                  return;
-              }
-              options = self.getFeatureOptionsForElement(feature, this);
-
-              if (options !== false) {
-                  // add the defaults to the options list
-                  options = $.extend({}, defaults,  options);
-
-                  // global onBeforeAttach event
-                  var e = $.Event('beforeAttach', {
-                      element: element,
-                      feature: feature,
-                      options: options
-                  });
-                  self.trigger(e);
-                  if (e.result === false || e.isDefaultPrevented()) {
-                      $this.attr('data-fxr-'+feature, null);
-                      $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
-                      self.log('Feaxure ' + feature + ' was not applied because the global before attach events prevents it');
-                      return;
-                  }
-
-                  // feature's onBeforeAttach callback
-                  e = $.Event('beforeAttach:' + feature, {
-                      element: element,
-                      feature: feature,
-                      options: options
-                  });
-                  self.trigger(e);
-                  if (e.returnValue === false || e.isDefaultPrevented()) {
-                      $this.attr('data-fxr-'+feature, null);
-                      $this.data('fxr.'+feature, false); // we need this so we don't try to apply the feature again
-                      self.log('Feaxure ' + feature + ' was not applied because the feature\'s before attach prevents it');
-                      return;
-                  }
-
-                  featureDefinition.attach.call(self, element, options);
-                  self.log('Feaxure ' + feature + ' was applied to element', element);
-
-                  // feature's onAfterAttach callback
-                  e = $.Event('afterAttach:' + feature);
-                  e.element = element;
-                  e.feature = feature;
-                  e.options = options;
-                  self.trigger(e);
-                  // global onAfterAttach callback
-                  e = $.Event('afterAttach');
-                  e.element = element;
-                  e.feature = feature;
-                  e.options = options;
-                  self.trigger(e);
-              }
-              // clear the element attribute so discover() will not find it again
-              $this.attr('data-fxr-'+feature, null);
-              // store the computed options for further reference
-              // (eg: load more features depending on the existing features)
-              $this.data('fxr.'+feature, options);
+            self._attachToElement(feature, element);
           });
           dfd.resolveWith(self, [{feaxureName: feature}]);
         });
@@ -688,6 +727,9 @@
             jQuery('body').on('dom:changed', function() {
                 self.discover('body');
             });
+            jQuery(window).on('resize', function() {
+                jQuery('body').trigger('dom:changed');
+            });
             _each(self._features, function(featureName, feature) {
                 _each(['click', 'focus', 'mouseover'], function(i, evt) {
                     if (evt === feature.attachEvent) {
@@ -702,7 +744,7 @@
                               var elements = $(feature.selector).not($(ev.currentTarget));
                               self.attach(featureName, $(ev.currentTarget));
 
-                              self.one('afterAttach:' + featureName, function(e) {
+                              self.one('attach:' + featureName, function(e) {
                                   // remove the delegated event to prevent from being executed again
                                   $('body').off(evt+'.feaxures', feature.selector, ev.handler);
                                   // trigger the event again
