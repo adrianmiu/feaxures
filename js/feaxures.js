@@ -135,12 +135,58 @@
         }
       }
     };
+    var StringProto = String.prototype,
+        ArrayProto = Array.prototype,
+        ObjectProto = Object.prototype,
+        slice = ArrayProto.slice,
+        nativeForEach = ArrayProto.forEach;
+
+    // The cornerstone, an `each` implementation, aka `forEach`.
+    // Handles objects with the built-in `forEach`, arrays, and raw objects.
+    // Delegates to **ECMAScript 5**'s native `forEach` if available.
+    var each = function(obj, iterator, context) {
+      if (obj == null) return;
+      if (nativeForEach && obj.forEach === nativeForEach) {
+        obj.forEach(iterator, context);
+      } else if (obj.length === +obj.length) {
+        for (var i = 0, l = obj.length; i < l; i++) {
+          if (iterator.call(context, obj[i], i, obj) === {}) return;
+        }
+      } else {
+        for (var key in obj) {
+          if (ObjectProto.hasOwnProperty.call(obj, key)) {
+            if (iterator.call(context, obj[key], key, obj) === {}) return;
+          }
+        }
+      }
+    };
+
+    // Extends an object with properties from one or more objects
+    // ex: newObj = extend(defaults, objA, objsB);
+    var extend = function(obj) {
+      each(slice.call(arguments, 1), function(source) {
+        if (source) {
+          for (var prop in source) {
+            obj[prop] = source[prop];
+          }
+        }
+      });
+      return obj;
+    };
+
+    var trim = function(str) {
+      if (StringProto.trim) {
+        return StringProto.trim.call(str);
+      }
+      return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+    }
 
     // Evaluates a script in a global context
   	// Workarounds based on findings by Jim Driscoll
   	// http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-context
-  	var globalEval = function( data ) {
-  		if ( data && jQuery.trim( data ) ) {
+  	var globalEval = function(data) {
+      data = trim(data);
+  		if (data) {
   			// We use execScript on Internet Explorer
   			// We use an anonymous function so that context is window
   			// rather than jQuery in Firefox
@@ -149,7 +195,7 @@
   			} )( data );
   		}
   	};
-    
+
     /**
      * Minimalist implementation of Promises. Borrowed from here:
      * https://gist.github.com/814052/690a6b41dc8445479676b347f1ed49f4fd0b1637
@@ -249,14 +295,14 @@
         return toString.call(obj) == '[object Array]';
     };
 
-    var _each           = $.each,
+    var 
         // load function (can be replaced with something else as long as the files are provided in the proper format)
         // Modernizr.load or any other resource loader may be used for this as long as the function accepts 3 arguments
         // 1. a list of resources to be loaded
         // 2. a success callback
         // 3. a fail callback (optional)
         _load           = window.require,
-        Deferred        = (window.jQuery && window.jQuery.Deferred) ? function() { return jQuery.Deferred();} : Deferred;
+        $               = window.jQuery || window.zepto || window.Sizzle || window.ender;
 
     var Feaxures = function(config) {
         // event hanlder using jQuery
@@ -271,25 +317,27 @@
         return this;
     };
 
+    var FeaxuresProto = Feaxures.prototype;
+
     /**
      * Event handlers using $.Callbacks
      */
-    Feaxures.prototype.on = function(eventName, method) {
+    FeaxuresProto.on = function(eventName, method) {
         this._events.on(eventName, method);
         return this;
     };
 
-    Feaxures.prototype.one = function(eventName, method) {
+    FeaxuresProto.one = function(eventName, method) {
         this._events.one(eventName, method);
         return this;
     };
 
-    Feaxures.prototype.off = function(eventName, method) {
+    FeaxuresProto.off = function(eventName, method) {
         this._events.off(eventName, method);
         return this;
     };
 
-    Feaxures.prototype.trigger = function() {
+    FeaxuresProto.trigger = function() {
         this.log('Event "' + arguments[0].type + '" was called');
         this._events.trigger.apply(this._events, arguments);
     };
@@ -302,10 +350,8 @@
      * @param  {mixed}         value    (optional) to set the configuration value of a single option
      * @return {String|Object}
      */
-    Feaxures.prototype.config = function(config) {
-        if ($.isPlainObject(config)) {
-            this._config = $.extend(this._config, config);
-        } else if (typeof(config) == 'string') {
+    FeaxuresProto.config = function(config) {
+        if (typeof(config) == 'string') {
 
             if (arguments.length === 1) {
                 return this._config[config] || false;
@@ -314,6 +360,8 @@
             }
         } else if (config === undefined) {
             return this._config;
+        } else {
+            this._config = extend(this._config, config);
         }
         return this;
     };
@@ -321,7 +369,7 @@
     /**
      * Simple function to log messages if the debug mode is active
      */
-    Feaxures.prototype.log = function() {
+    FeaxuresProto.log = function() {
         if (this.config('debug') && typeof(console.log) == 'function') {
             console.log.apply(console, arguments);
         }
@@ -332,7 +380,7 @@
      * @param  {String}  feature
      * @return {Boolean}
      */
-    Feaxures.prototype.isRegistered = function(feature) {
+    FeaxuresProto.isRegistered = function(feature) {
         return feature && this._features[feature] ? true : false;
     };
 
@@ -342,8 +390,8 @@
      * @param  {Object} options configuration options
      * @return self
      */
-    Feaxures.prototype.register = function(feature, options) {
-        options = $.extend({
+    FeaxuresProto.register = function(feature, options) {
+        options = extend({
             // auto-load the feature
             'autoLoad'    : false,
             // the 'selector' can be used to optimize quering the DOM
@@ -389,7 +437,7 @@
      * @param  {String}  feature
      * @return {Boolean}
      */
-    Feaxures.prototype.isLoaded = function(feature) {
+    FeaxuresProto.isLoaded = function(feature) {
         return this._loadedFeatures[feature] ? true : false;
     };
 
@@ -397,9 +445,9 @@
      * [load description]
      * @param  {String}   feature  name of the feature
      * @param  {Function} callback function to be executed after the feature is loaded
-     * @return jQuery promise
+     * @return a Promise
      */
-    Feaxures.prototype.load = function(feature, callback) {
+    FeaxuresProto.load = function(feature, callback) {
         var self = this;
         var dfd = new Deferred();
 
@@ -478,7 +526,7 @@
         return dfd.promise();
     };
 
-    Feaxures.prototype._detachFromElement = function(feature, element) {
+    FeaxuresProto._detachFromElement = function(feature, element) {
         var self = this,
             $el = $(element),
             featureDefinition = this._features[feature],
@@ -521,7 +569,7 @@
      * @param  {DOMelement} element
      * @return {void}
      */
-    Feaxures.prototype._attachToElement = function(feature, element) {
+    FeaxuresProto._attachToElement = function(feature, element) {
         var self = this,
             $el = $(element),
             featureDefinition = this._features[feature],
@@ -547,7 +595,7 @@
 
         if (options !== false) {
             // add the defaults to the options list
-            options = $.extend({}, defaults,  options);
+            options = extend({}, defaults,  options);
 
             featureDefinition.attach.call(this, element, options);
             // store the computed options for further reference
@@ -582,7 +630,7 @@
      * @param  {Array}    domElements a simple array or jQuery selection
      * @return self
      */
-    Feaxures.prototype.attach = function(feature, domElements) {
+    FeaxuresProto.attach = function(feature, domElements) {
         var self = this,
             featureDefinition = this._features[feature],
             enhanceableElements = 0,
@@ -607,9 +655,8 @@
             return dfd.promise();
         }
         // first we need to determine if there are elements that need to be enhanced
-        _each(domElements, function(index, element) {
-            var $this = $(this),
-                options = self.getFeatureOptionsForElement(feature, this);
+        each(domElements, function(element, index) {
+            var options = self.getFeatureOptionsForElement(feature, element);
             if (options !== false) {
                 enhanceableElements++;
             }
@@ -623,7 +670,7 @@
         }
 
         loadPromise.done(function() {
-          _each(domElements, function(index, element) {
+          each(domElements, function(element, index) {
             self._attachToElement(feature, element);
           });
           dfd.resolveWith(self, [{feaxureName: feature}]);
@@ -644,7 +691,7 @@
      * @param {DOM Element}     domElement    used if the 'options' converts into a function that will be called with the domElement as argument
      * @returns {Object}        computed feature options
      */
-    Feaxures.prototype.getFeatureOptionsForElement = function(feature, domElement) {
+    FeaxuresProto.getFeatureOptionsForElement = function(feature, domElement) {
         var options = $(domElement).attr('data-fxr-' + feature);
         if (options === 'false') {
             return false;
@@ -680,7 +727,7 @@
      * @param  {selector/DOM element}   container
      * @return self
      */
-    Feaxures.prototype.discover = function(container) {
+    FeaxuresProto.discover = function(container) {
         var self = this,
             feaxuresCount = 0,
             feaxuresAttached = 0,
@@ -688,12 +735,12 @@
         if (typeof(container) === 'string') {
             container = $(container);
         }
-        _each(this._features, function(index, value) {
+        each(this._features, function(value, index) {
             if (value.attachEvent === 'domready') {
               feaxuresCount++;
             }
         });
-        _each(this._features, function(index, value) {
+        each(this._features, function(value, index) {
             if (value.attachEvent === 'domready') {
               self.attach(index, $(value.selector, container)).always(function() {
                   feaxuresAttached++;
@@ -713,10 +760,10 @@
      * - delegates the feaxures.load events on the DOM
      * @return self
      */
-    Feaxures.prototype.initialize = function() {
+    FeaxuresProto.initialize = function() {
         var self = this;
         // autoload the appropriate features
-        _each(this._features, function(index, value) {
+        each(this._features, function(index, value) {
             if (value.autoLoad === true && !self._loadedFeatures[value.name]) {
                 self.load(value.name);
             }
@@ -730,8 +777,8 @@
             jQuery(window).on('resize', function() {
                 jQuery('body').trigger('dom:changed');
             });
-            _each(self._features, function(featureName, feature) {
-                _each(['click', 'focus', 'mouseover'], function(i, evt) {
+            each(self._features, function(featureName, feature) {
+                each(['click', 'focus', 'mouseover'], function(i, evt) {
                     if (evt === feature.attachEvent) {
                         $('body').on(evt+'.feaxures', feature.selector, function(ev, data) {
                               // if the current element is not a candidate for the feature, return asap
