@@ -9,11 +9,14 @@
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
   <script src="js/qunit.js"></script>
-  <script src="../js/zepto.js"></script>
-  <script src="../js/feaxures.js"></script>
-  <script src="../js/curl.js"></script>
+  <script src="../lib/zepto.js"></script>
+  <script src="../lib/callbacks.js"></script>
+  <script src="../lib/events.js"></script>
+  <script src="../lib/deferred.js"></script>
+  <script src="../lib/curl.js"></script>
   <script>
     curl({
+      'debug': true,
       'baseUrl': '../js',
       'paths': {
         'css!' : '../tests/css',
@@ -21,10 +24,23 @@
       },
       'apiName': 'require'
     });
-    if (!jQuery && $) {
-        var jQuery = $;
-    }
   </script>
+  <script>
+    var FeaxuresDependencies = {
+        EventsBehaviour: EventManager,
+        Deferred: Deferred,
+        selector: function(selector, context) { return $(selector, context); },
+        getAttr: function(element, attr) { return $(element).attr(attr); },
+        getData: function(element, name) { return $(element).data(name); },
+        setData: function(element, name, value) { return $(element).data(name, value); },
+        bindEvent: function(element, event, callback) { return $(element).on(event, callback); },
+        unbindEvent: function(element, event, callback) { return $(element).off(event, callback); },
+        triggerEvent: function(element, event, data) { return $(element).trigger(event, data); },
+        delegateEvent: function(element, event, selector, callback) { return $(element).on(event, selector, callback); },
+        undelegateEvent: function(element, event, selector, callback) { return $(element).off(event, selector, callback); }
+    };
+  </script>
+  <script src="../src/feaxures.js"></script>
   <script src="js/feaxures.tests.curl.js"></script>
 </body>
 </html>

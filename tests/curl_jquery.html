@@ -9,11 +9,11 @@
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
   <script src="js/qunit.js"></script>
-  <script src="../js/jquery.js"></script>
-  <script src="../js/feaxures.js"></script>
-  <script src="../js/curl.js"></script>
+  <script src="../lib/jquery.js"></script>
+  <script src="../lib/curl.js"></script>
   <script>
     curl({
+      'debug': true,
       'baseUrl': '../js',
       'paths': {
         'css!' : '../tests/css',
@@ -21,10 +21,8 @@
       },
       'apiName': 'require'
     });
-    if (!jQuery && $) {
-        var jQuery = $;
-    }
   </script>
+  <script src="../src/feaxures.js"></script>
   <script src="js/feaxures.tests.curl.js"></script>
 </body>
 </html>

@@ -330,7 +330,6 @@ require(['feaxures'], function(Feaxures) {
         stop();
         var discoverPromise = feaxures.discover('#qunit-fixture');
         discoverPromise.done(function(){
-            console.log(this, arguments);
             var attached = 0;
             $('[id^="morereal-"]:contains(random number)').each(function() {
                 if ($(this).data('fxr.real')) {

@@ -1,17 +1,6 @@
     require = curl;
-test("loading as AMD module", function() {
-    stop();
-    require(['feaxures'], function(Feaxures) {
-       ok(Feaxures, 'feaxures loaded');
-       start();
-    }, function(err) {
-        ok(false, 'Error loading the feaxures ocurred');
-        start();
-    });
-});
 
-require(['feaxures'], function(Feaxures) {
-    var feaxures = new Feaxures();
+    var feaxures = new Feaxures(); 
     module('all', {
         'setup': function() { feaxures = new Feaxures(); },
         'teardown': function() {}
@@ -181,7 +170,7 @@ require(['feaxures'], function(Feaxures) {
 
     });
 
-    if (jQuery.Deferred) {
+    if (window.jQuery && jQuery.Deferred) {
         /**
          * This test fails on ZEPTO because of how $.data() method works
          * (ie: it uses the data- attribute) so we cannot verify the final options
@@ -276,8 +265,8 @@ require(['feaxures'], function(Feaxures) {
         });
         feaxures.register('aareal', {
             files: ['js!tests/js/real'],
-            onAttach: function(event) {
-                $(event.element).addClass('after-apply');
+            onAttach: function(event, data) {
+                $(data.element).addClass('after-apply');
             },
             attach: function(element, options) {
                 $(element).real();
@@ -339,7 +328,6 @@ require(['feaxures'], function(Feaxures) {
         stop();
         var discoverPromise = feaxures.discover('#qunit-fixture');
         discoverPromise.done(function(){
-            console.log(this, arguments);
             var attached = 0;
             $('#morereal-a, #morereal-b, #morereal-c').each(function() {
                 if ($(this).data('fxr.real')) {
@@ -350,4 +338,3 @@ require(['feaxures'], function(Feaxures) {
             start();
         });
     });
-});

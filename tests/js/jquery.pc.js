@@ -1,6 +1,6 @@
-jQuery.fn.pa();
-jQuery.fn.pb();
-jQuery.fn.pc = function() {
+$.fn.pa();
+$.fn.pb();
+$.fn.pc = function() {
     console.log('PC');
 }
 

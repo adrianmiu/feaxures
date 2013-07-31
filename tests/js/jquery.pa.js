@@ -1,4 +1,4 @@
-jQuery.fn.pa = function() {
+$.fn.pa = function() {
     console.log('PA');
 }
 

@@ -9,14 +9,15 @@
  * @see https://github.com/umdjs/umd/blob/master/amdWebGlobal.js
  */
 (function (root, factory) {
+    console.log(arguments);
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
         define('feaxures', function () {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-
-            return (root.Feaxures = factory());
+            root.Feaxures = factory();
+            return root.Feaxures;
         });
     } else {
         // Browser globals
@@ -24,6 +25,144 @@
     }
 }(this, function () {
     "use strict";
+
+    var StringProto = String.prototype,
+        ArrayProto = Array.prototype,
+        ObjectProto = Object.prototype,
+        slice = ArrayProto.slice,
+        nativeForEach = ArrayProto.forEach,
+        jQuery = window.jQuery;
+
+    // The cornerstone, an `each` implementation, aka `forEach`.
+    // Handles objects with the built-in `forEach`, arrays, and raw objects.
+    // Delegates to **ECMAScript 5**'s native `forEach` if available.
+    var each = function(obj, iterator, context) {
+      if (obj == null) return;
+      if (nativeForEach && obj.forEach === nativeForEach) {
+        obj.forEach(iterator, context);
+      } else if (obj.length === +obj.length) {
+        for (var i = 0, l = obj.length; i < l; i++) {
+          if (iterator.call(context, obj[i], i, obj) === {}) return;
+        }
+      } else {
+        for (var key in obj) {
+          if (ObjectProto.hasOwnProperty.call(obj, key)) {
+            if (iterator.call(context, obj[key], key, obj) === {}) return;
+          }
+        }
+      }
+    };
+
+    var trim = function(str) {
+      if (StringProto.trim) {
+        return StringProto.trim.call(str);
+      }
+      return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+    }
+
+    // Evaluates a script in a global context
+    // Workarounds based on findings by Jim Driscoll
+    // http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-context
+    var globalEval = function(data) {
+      data = trim(data);
+      if (data) {
+        // We use execScript on Internet Explorer
+        // We use an anonymous function so that context is window
+        // rather than jQuery in Firefox
+        ( window.execScript || function( data ) {
+          window[ "eval" ].call( window, data );
+        } )( data );
+      }
+    };
+
+    var isObject = function(obj) {
+        return obj === Object(obj);
+    };
+    
+    var isArray = Array.isArray || function(obj) {
+        return toString.call(obj) == '[object Array]';
+    };
+
+    // Extends an object with properties from one or more objects
+    // ex: newObj = extend(defaults, objA, objsB);
+    var extend = function(obj) {
+      each(slice.call(arguments, 1), function(source) {
+        if (source) {
+          for (var prop in source) {
+            obj[prop] = source[prop];
+          }
+        }
+      });
+      return obj;
+    };
+
+    // generates functions that throw errors when called
+    var ErrorFactory = function(message) {
+        return function() {
+            throw new Error(message);
+        }
+    }
+
+    /**
+     * Functional mixin that provides Events capabilities
+     */
+    var EventsBehaviour;
+    if (jQuery && jQuery.Callbacks) {
+        EventsBehaviour = function() {
+            var clbs = {},
+            getCallbacks = function(name) {
+              return clbs[name] || (clbs[name] = jQuery.Callbacks('unique stopOnFalse'));
+            };
+            this.on = function(name, func) {
+              getCallbacks(name).add(func);
+              return this;
+            };
+            this.one = function(name, func) {
+              var self = this,
+                once = function() {
+                  self.off(name, once);
+                  return func.apply(this, arguments);
+                };
+              this.on(name, once);
+              return this;
+            };
+            this.off = function(name, func) {
+              getCallbacks(name).remove(func);
+              return this;
+            }
+            this.trigger = function(name) {
+              return getCallbacks(name).fireWith(this, [].slice.call(arguments));
+            };
+        }
+    }   
+
+
+    // Feaxures dependencies to be overwritten when needed by populating the window.FeaxuresDependencies object
+    var deps = {};
+    // load function (can be replaced with something else as long as the files are provided in the proper format)
+    // Modernizr.load or any other resource loader may be used for this as long as the function accepts 3 arguments
+    // 1. a list of resources to be loaded
+    // 2. a success callback
+    // 3. a fail callback (optional)
+    deps.loader               = window.require;
+    // Deferred objects that implement Promises/A specifications
+    deps.Deferred             = jQuery ? jQuery.Deferred : null;
+    // function to add callbacks for domReadh
+    deps.domReady             = jQuery ? function(callback) { jQuery(callback); } : null;
+    // DOM selector; must return an entity that can be iterated with each()
+    deps.selector             = jQuery ? function(selector, context) { return jQuery(selector, context); } : null;
+    deps.getAttr              = jQuery ? function(element, attr) { return jQuery(element).attr(attr); } : null;
+    deps.getData              = jQuery ? function(element, name) { return jQuery.data(element, name); } : null;
+    deps.setData              = jQuery ? function(element, name, value) { return jQuery.data(element, name, value); } : null;
+    deps.bindEvent            = jQuery ? function(element, event, callback) { return jQuery(element).on(event, callback); } : null;
+    deps.unbindEvent          = jQuery ? function(element, event, callback) { return jQuery(element).off(event, callback); } : null;
+    deps.triggerEvent         = jQuery ? function(element, event, data) { return jQuery(element).trigger(event, data); } : null;
+    deps.delegateEvent        = jQuery ? function(element, event, selector, callback) { return jQuery(element).on(event, selector, callback); } : null;
+    deps.undelegateEvent      = jQuery ? function(element, event, selector, callback) { return jQuery(element).off(event, selector, callback); } : null;
+    deps.EventsBehaviour      = EventsBehaviour;
+    deps = extend(deps, window.FeaxuresDependencies || {});
+    console.log(deps, window.FeaxuresDependencies);
+
     /**
      * taken from http://phpjs.org/functions/parse_str/
      * improved so it converts strings like 'true' and 'false' to boolean values
@@ -135,178 +274,7 @@
         }
       }
     };
-    var StringProto = String.prototype,
-        ArrayProto = Array.prototype,
-        ObjectProto = Object.prototype,
-        slice = ArrayProto.slice,
-        nativeForEach = ArrayProto.forEach;
-
-    // The cornerstone, an `each` implementation, aka `forEach`.
-    // Handles objects with the built-in `forEach`, arrays, and raw objects.
-    // Delegates to **ECMAScript 5**'s native `forEach` if available.
-    var each = function(obj, iterator, context) {
-      if (obj == null) return;
-      if (nativeForEach && obj.forEach === nativeForEach) {
-        obj.forEach(iterator, context);
-      } else if (obj.length === +obj.length) {
-        for (var i = 0, l = obj.length; i < l; i++) {
-          if (iterator.call(context, obj[i], i, obj) === {}) return;
-        }
-      } else {
-        for (var key in obj) {
-          if (ObjectProto.hasOwnProperty.call(obj, key)) {
-            if (iterator.call(context, obj[key], key, obj) === {}) return;
-          }
-        }
-      }
-    };
-
-    // Extends an object with properties from one or more objects
-    // ex: newObj = extend(defaults, objA, objsB);
-    var extend = function(obj) {
-      each(slice.call(arguments, 1), function(source) {
-        if (source) {
-          for (var prop in source) {
-            obj[prop] = source[prop];
-          }
-        }
-      });
-      return obj;
-    };
-
-    var trim = function(str) {
-      if (StringProto.trim) {
-        return StringProto.trim.call(str);
-      }
-      return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-    }
-
-    // Evaluates a script in a global context
-  	// Workarounds based on findings by Jim Driscoll
-  	// http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-context
-  	var globalEval = function(data) {
-      data = trim(data);
-  		if (data) {
-  			// We use execScript on Internet Explorer
-  			// We use an anonymous function so that context is window
-  			// rather than jQuery in Firefox
-  			( window.execScript || function( data ) {
-  				window[ "eval" ].call( window, data );
-  			} )( data );
-  		}
-  	};
-
-    /**
-     * Minimalist implementation of Promises. Borrowed from here:
-     * https://gist.github.com/814052/690a6b41dc8445479676b347f1ed49f4fd0b1637
-     * This will be used in case the $.Deferred is missing (ie: zepto instead of jQuery)
-     * @returns {_L25.Promise}
-     */
-    function Deferred () {
-        this._thens = [];
-    }
-    Deferred.prototype = {
-
-        /* This is the "front end" API. */
-
-        // then(onResolve, onReject): Code waiting for this promise uses the
-        // then() method to be notified when the promise is complete. There
-        // are two completion callbacks: onReject and onResolve. A more
-        // robust promise implementation will also have an onProgress handler.
-        then: function (onResolve, onReject) {
-            // capture calls to then()
-            this._thens.push({ resolve: onResolve, reject: onReject });
-            return this;
-        },
-
-        done: function(onResolve) {
-            return this.then(onResolve, null);
-        },
-                
-        fail: function(onReject) {
-            return this.then(null, onReject);
-        },
-                
-        always: function(onAnything) {
-            return this.then(onAnything, onAnything);
-        },
-                
-        promise: function() {
-            var self = this,
-                promise = {
-                    done: function() { return self.done.apply(self, arguments); },
-                    fail: function() { return self.fail.apply(self, arguments); },
-                    always: function() { return self.always.apply(self, arguments); }
-                };
-            return promise;
-        },
-
-        // Some promise implementations also have a cancel() front end API that
-        // calls all of the onReject() callbacks (aka a "cancelable promise").
-        // cancel: function (reason) {},
-
-        /* This is the "back end" API. */
-
-        // resolve(resolvedValue): The resolve() method is called when a promise
-        // is resolved (duh). The resolved value (if any) is passed by the resolver
-        // to this method. All waiting onResolve callbacks are called
-        // and any future ones are, too, each being passed the resolved value.
-        resolve: function (val) { this._complete('resolve', val); },
-                
-        resolveWith: function(obj, val) { this._complete('resolve', val, obj); },
-
-        // reject(exception): The reject() method is called when a promise cannot
-        // be resolved. Typically, you'd pass an exception as the single parameter,
-        // but any other argument, including none at all, is acceptable.
-        // All waiting and all future onReject callbacks are called when reject()
-        // is called and are passed the exception parameter.
-        reject: function (ex) { this._complete('reject', ex); },
-                
-        rejectWith: function (obj, ex) { this._complete('reject', ex, obj); },
-
-        // Some promises may have a progress handler. The back end API to signal a
-        // progress "event" has a single parameter. The contents of this parameter
-        // could be just about anything and is specific to your implementation.
-        // progress: function (data) {},
-
-        /* "Private" methods. */
-
-        _complete: function (which, arg, obj) {
-            // switch over to sync then()
-            this.then = which === 'resolve' ?
-                function (resolve, reject) { resolve(arg); } :
-                function (resolve, reject) { reject(arg); };
-            // disallow multiple calls to resolve or reject
-            this.resolve = this.reject = 
-                function () { throw new Error('Promise already completed.'); };
-            // complete all waiting (async) then()s
-            var aThen, i = 0;
-            while (aThen = this._thens[i++]) { aThen[which] && aThen[which].call(obj || null, arg); }
-            delete this._thens;
-        }
-
-    };
-
-    var isObject = function(obj) {
-        return obj === Object(obj);
-    };
-    
-    var isArray = Array.isArray || function(obj) {
-        return toString.call(obj) == '[object Array]';
-    };
-
-    var 
-        // load function (can be replaced with something else as long as the files are provided in the proper format)
-        // Modernizr.load or any other resource loader may be used for this as long as the function accepts 3 arguments
-        // 1. a list of resources to be loaded
-        // 2. a success callback
-        // 3. a fail callback (optional)
-        _load           = window.require,
-        $               = window.jQuery || window.zepto || window.Sizzle || window.ender;
-
     var Feaxures = function(config) {
-        // event hanlder using jQuery
-        this._events         = $(document);
         // list of loaded features
         this._loadedFeatures = {};
         // list of registered features
@@ -319,28 +287,7 @@
 
     var FeaxuresProto = Feaxures.prototype;
 
-    /**
-     * Event handlers using $.Callbacks
-     */
-    FeaxuresProto.on = function(eventName, method) {
-        this._events.on(eventName, method);
-        return this;
-    };
-
-    FeaxuresProto.one = function(eventName, method) {
-        this._events.one(eventName, method);
-        return this;
-    };
-
-    FeaxuresProto.off = function(eventName, method) {
-        this._events.off(eventName, method);
-        return this;
-    };
-
-    FeaxuresProto.trigger = function() {
-        this.log('Event "' + arguments[0].type + '" was called');
-        this._events.trigger.apply(this._events, arguments);
-    };
+    deps.EventsBehaviour.call(FeaxuresProto);
 
     /**
      * Sets/retrieves configuration options. The list of all available options below
@@ -449,7 +396,7 @@
      */
     FeaxuresProto.load = function(feature, callback) {
         var self = this;
-        var dfd = new Deferred();
+        var dfd = new deps.Deferred();
 
         if (!this.isRegistered(feature)) {
             this.log('Feaxure ' + feature + ' is not registered');
@@ -490,13 +437,9 @@
             this._loadedFeatures[feature] = true;
             self.log('Feaxure ' + feature + ' was loaded');
 
-            var e = $.Event('load');
-            e.feature = feature;
-            self.trigger(e);
-
-            e = $.Event('load:' + feature);
-            e.feature = feature;
-            self.trigger(e);
+            var evtData = {feature: feature};
+            self.trigger('load', evtData);
+            self.trigger('load:' + feature, evtData);
         });
 
         dfd.fail(function(err){
@@ -507,16 +450,12 @@
             this._loadedFeatures[feature] = false;
             self.log('Error loading feaxure ' + feature);
 
-            var e = $.Event('loadError');
-            e.feature = feature;
-            self.trigger(e);
-
-            e = $.Event('loadError:' + feature);
-            e.feature = feature;
-            self.trigger(e);
+            var evtData = {feature: feature};
+            self.trigger('loadError', evtData);
+            self.trigger('loadError:' + feature, evtData);
         });
 
-        _load(featureDefinition.files, function() {
+        deps.loader(featureDefinition.files, function() {
             dfd.resolveWith(self, ['Feaxure ' + feature + ' was loaded']);
         }, function(err) {
             self.log('Error loading feaxure ' + feature, err);
@@ -541,25 +480,18 @@
         }
 
         featureDefinition.detach.call(this, element);
-        $el.data('fxr.'+feature, null);
+        deps.setData(element, 'fxr.'+feature, null);
         this.log('Feaxure ' + feature + ' was applied to element', element);
 
         // the feature is detached, remove the event callback
-        $('body').off('dom:changed', function() {
-          self._detachFromElement(feature, element);
-      });
+        deps.unbindEvent('body', 'dom:changed', function() {
+            self._detachFromElement(feature, element);
+        });
 
         // feature's onAttach event
-        var e = $.Event('detach:' + feature);
-        e.element = element;
-        e.feature = feature;
-        this.trigger(e);
-
-        // global onAttach event
-        e = $.Event('detach');
-        e.element = element;
-        e.feature = feature;
-        this.trigger(e);
+        var evtData = {feature: feature, element: element};
+        this.trigger('detach:' + feature, evtData);
+        this.trigger('detach', evtData);
     };
 
     /**
@@ -571,12 +503,11 @@
      */
     FeaxuresProto._attachToElement = function(feature, element) {
         var self = this,
-            $el = $(element),
             featureDefinition = this._features[feature],
             // allow for feature's default options to be a function
             defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults,
-            options = $el.attr('data-fxr-'+feature),
-            alreadyAttached = ($el.data('fxr.'+feature) !== null && $el.data('fxr.'+feature) !== undefined);
+            options = deps.getAttr(element, 'data-fxr-'+feature),
+            alreadyAttached = (deps.getData(element, 'fxr.'+feature) !== null && deps.getData(element, 'fxr.'+feature) !== undefined);
 
         // feature is already loaded or it doesn't have an attach() method
         if (alreadyAttached) {
@@ -599,28 +530,19 @@
 
             featureDefinition.attach.call(this, element, options);
             // store the computed options for further reference
-            $el.data('fxr.'+feature, options);
+            deps.setData(element, 'fxr.'+feature, options);
             this.log('Feaxure ' + feature + ' was applied to element', element);
 
             if (isDetachable) {
-                $('body').on('dom:changed', function() {
+                deps.bindEvent('body', 'dom:changed', function() {
                     self._detachFromElement(feature, element);
                 });
             }
 
             // feature's onAttach event
-            var e = $.Event('attach:' + feature);
-            e.element = element;
-            e.feature = feature;
-            e.options = options;
-            this.trigger(e);
-
-            // global onAttach event
-            e = $.Event('attach');
-            e.element = element;
-            e.feature = feature;
-            e.options = options;
-            this.trigger(e);
+            var evtData = {feature: feature, element: element, options: options};
+            this.trigger('attach:' + feature, evtData);
+            this.trigger('attach', evtData);
         }
     };
 
@@ -635,7 +557,7 @@
             featureDefinition = this._features[feature],
             enhanceableElements = 0,
             loadPromise = this.load(feature),
-            dfd = new Deferred();
+            dfd = new deps.Deferred();
 
         // we don't have a proper attach() callback
         if (!featureDefinition.attach || typeof featureDefinition.attach !== 'function') {
@@ -692,15 +614,15 @@
      * @returns {Object}        computed feature options
      */
     FeaxuresProto.getFeatureOptionsForElement = function(feature, domElement) {
-        var options = $(domElement).attr('data-fxr-' + feature);
+        var options = deps.getAttr(domElement, 'data-fxr-' + feature);
         if (options === 'false') {
             return false;
         } else if (options === 'true' || options === '') {
             return {};
         } else if (options.substr(0,1) == '#') {
-            options = $(options).text();
+            options = deps.selector(options).text();
         }
-        options = $.trim(options);
+        options = trim(options);
         if (options.substr(0, 1) == '{') {
             var o = {};
             eval('o = ' + options + ';');
@@ -731,9 +653,9 @@
         var self = this,
             feaxuresCount = 0,
             feaxuresAttached = 0,
-            dfd = new Deferred();
+            dfd = new deps.Deferred();
         if (typeof(container) === 'string') {
-            container = $(container);
+            container = deps.selector(container);
         }
         each(this._features, function(value, index) {
             if (value.attachEvent === 'domready') {
@@ -742,7 +664,7 @@
         });
         each(this._features, function(value, index) {
             if (value.attachEvent === 'domready') {
-              self.attach(index, $(value.selector, container)).always(function() {
+              self.attach(index, deps.selector(value.selector, container)).always(function() {
                   feaxuresAttached++;
                   if (feaxuresAttached === feaxuresCount) {
                       dfd.resolveWith(self, [{feaxuresAttached: feaxuresAttached}]);
@@ -769,43 +691,43 @@
             }
         });
         // register the discover() method on domReady and dom:changed event
-        jQuery(function() {
+        deps.domReady(function() {
+
             self.discover('body');
-            jQuery('body').on('dom:changed', function() {
+            deps.bindEvent('body', 'dom:changed', function() {
                 self.discover('body');
             });
-            jQuery(window).on('resize', function() {
-                jQuery('body').trigger('dom:changed');
+            deps.bindEvent(window, 'resize', function() {
+                deps.triggerEvent('body', 'dom:changed');
             });
+            var allowedEvents = ['click', 'focus', 'mouseover'], callback;
             each(self._features, function(featureName, feature) {
-                each(['click', 'focus', 'mouseover'], function(i, evt) {
-                    if (evt === feature.attachEvent) {
-                        $('body').on(evt+'.feaxures', feature.selector, function(ev, data) {
-                              // if the current element is not a candidate for the feature, return asap
-                              if (self.getFeatureOptionsForElement(featureName, ev.currentTarget) === false) {
-                                  return;
-                              }
-                              ev.stopPropagation();
-                              ev.preventDefault();
+                if (allowedEvents.indexOf(evt) !== -1) {
+                    callback = function(ev, data) {
+                          // if the current element is not a candidate for the feature, return asap
+                          if (self.getFeatureOptionsForElement(featureName, ev.currentTarget) === false) {
+                              return;
+                          }
+                          ev.stopPropagation();
+                          ev.preventDefault();
 
-                              var elements = $(feature.selector).not($(ev.currentTarget));
-                              self.attach(featureName, $(ev.currentTarget));
+                          var elements = deps.selector(feature.selector);
+                          self.attach(featureName, ev.currentTarget);
 
-                              self.one('attach:' + featureName, function(e) {
-                                  // remove the delegated event to prevent from being executed again
-                                  $('body').off(evt+'.feaxures', feature.selector, ev.handler);
-                                  // trigger the event again
-                                  $(ev.target).trigger(evt);
-                                  // attach feature the to rest of the matching elements
-                                  self.attach(featureName, elements);
-                              });
-                        });
-                    }
-                });
+                          self.one('attach:' + featureName, function(e) {
+                              // remove the delegated event to prevent from being executed again
+                              deps.undelegateEvent('body', evt+'.feaxures', feature.selector, callback);
+                              // trigger the event again
+                              deps.triggerEvent(ev.target, evt);
+                              // attach feature the to rest of the matching elements
+                              self.attach(featureName, elements);
+                          });
+                    };
+                    deps.delegateEvent('body', evt+'.feaxures', feature.selector, callback);
+                }
             });
         });
         return this;
     };
-
     return Feaxures;
 }));

@@ -9,19 +9,19 @@
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
   <script src="js/qunit.js"></script>
-  <script src="../js/require.js"></script>
-  <script src="../js/jquery.js"></script>
+  <script src="../lib/require.js"></script>
+  <script src="../lib/jquery.js"></script>
   <script>
     require.config({
         'baseUrl': './js/',
         'map': {
             '*': {
-                'css': '../../js/require.css'
+                'css': '../../lib/require.css'
             }
         },
         'paths': {
             'jquery': ['//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min', '../../js/jquery'],
-            'feaxures': '../../js/feaxures',
+            'feaxures': '../../src/feaxures',
         },
         'shim': {
             'jquery.pc': {
@@ -33,6 +33,6 @@
         }
     });
   </script>
-  <script src="js/feaxures.tests.js"></script>
+  <script src="js/feaxures.tests.require.js"></script>
 </body>
 </html>
