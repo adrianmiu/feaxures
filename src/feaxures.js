@@ -9,7 +9,6 @@
  * @see https://github.com/umdjs/umd/blob/master/amdWebGlobal.js
  */
 (function (root, factory) {
-    console.log(arguments);
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
         define('feaxures', function () {
@@ -161,7 +160,6 @@
     deps.undelegateEvent      = jQuery ? function(element, event, selector, callback) { return jQuery(element).off(event, selector, callback); } : null;
     deps.EventsBehaviour      = EventsBehaviour;
     deps = extend(deps, window.FeaxuresDependencies || {});
-    console.log(deps, window.FeaxuresDependencies);
 
     /**
      * taken from http://phpjs.org/functions/parse_str/
@@ -282,6 +280,7 @@
         // configuration options
         this._config         = {};
         this.config(config);
+        this.initialize();
         return this;
     };
 
@@ -701,29 +700,30 @@
                 deps.triggerEvent('body', 'dom:changed');
             });
             var allowedEvents = ['click', 'focus', 'mouseover'], callback;
-            each(self._features, function(featureName, feature) {
-                if (allowedEvents.indexOf(evt) !== -1) {
-                    callback = function(ev, data) {
+            each(self._features, function(feature, featureName) {
+                if (allowedEvents.indexOf(feature.attachEvent) !== -1) {
+                    var evtName = feature.attachEvent;
+                    callback = function(evt, data) {
                           // if the current element is not a candidate for the feature, return asap
-                          if (self.getFeatureOptionsForElement(featureName, ev.currentTarget) === false) {
+                          if (self.getFeatureOptionsForElement(featureName, evt.target) === false) {
                               return;
                           }
-                          ev.stopPropagation();
-                          ev.preventDefault();
+                          evt.stopPropagation();
+                          evt.preventDefault();
 
                           var elements = deps.selector(feature.selector);
-                          self.attach(featureName, ev.currentTarget);
+                          self.attach(featureName, [evt.target]);
 
                           self.one('attach:' + featureName, function(e) {
                               // remove the delegated event to prevent from being executed again
-                              deps.undelegateEvent('body', evt+'.feaxures', feature.selector, callback);
+                              deps.undelegateEvent('body', evtName+'.feaxures', feature.selector, callback);
                               // trigger the event again
-                              deps.triggerEvent(ev.target, evt);
+                              deps.triggerEvent(evt.target, evtName);
                               // attach feature the to rest of the matching elements
                               self.attach(featureName, elements);
                           });
                     };
-                    deps.delegateEvent('body', evt+'.feaxures', feature.selector, callback);
+                    deps.delegateEvent('body', evtName+'.feaxures', feature.selector, callback);
                 }
             });
         });
