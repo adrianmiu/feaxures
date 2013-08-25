@@ -636,7 +636,7 @@
         var options = getAttr(domElement, 'data-fxr-' + feature);
         if (options === 'false') {
             return false;
-        } else if (options === 'true' || options === '') {
+        } else if (options === 'true' || options === '' || options === null) {
             return {};
         } else if (options.substr(0,1) == '#') {
             options = deps.selector(options).text();
@@ -719,29 +719,29 @@
             deps.bindEvent(window, 'resize', function() {
                 deps.triggerEvent('body', 'dom:changed');
             });
-            var allowedEvents = ['click', 'focus', 'mouseover'], callback;
+            var allowedEvents = ['click', 'focus', 'mouseover'];
             each(self._features, function(feature, featureName) {
                 if (allowedEvents.indexOf(feature.attachEvent) !== -1) {
                     var evtName = feature.attachEvent;
-                    callback = function(evt, data) {
+                    var callback = function(evt, data) {
                           // if the current element is not a candidate for the feature, return asap
                           if (self.getFeatureOptionsForElement(featureName, evt.target) === false) {
-                              return;
+                              return false;
                           }
                           evt.stopPropagation();
                           evt.preventDefault();
 
-                          var elements = deps.selector(feature.selector);
-                          self.attach(featureName, [evt.target]);
-
-                          self.one('attach:' + featureName, function(e) {
+                          self.load(featureName).done(function() {
                               // remove the delegated event to prevent from being executed again
                               deps.undelegateEvent('body', evtName+'.feaxures', feature.selector, callback);
+                              // attach feature the to rest of the matching elements
+                              self.attach(featureName, deps.selector(feature.selector));
+                              // disable the lazy loading for future dom elements
+                              self._features[featureName]['attachEvent'] = 'domReady';
                               // trigger the event again
                               deps.triggerEvent(evt.target, evtName);
-                              // attach feature the to rest of the matching elements
-                              self.attach(featureName, elements);
                           });
+
                     };
                     deps.delegateEvent('body', evtName+'.feaxures', feature.selector, callback);
                 }
