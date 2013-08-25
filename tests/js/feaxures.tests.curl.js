@@ -116,7 +116,7 @@
         });
     });
 
-    test ('log method', function() {
+    test('log method', function() {
         // intercept console.log()
         // first we test that the function is not called
         var oldLog = console.log;
@@ -170,33 +170,31 @@
 
     });
 
-    if (window.jQuery && jQuery.Deferred) {
-        /**
-         * This test fails on ZEPTO because of how $.data() method works
-         * (ie: it uses the data- attribute) so we cannot verify the final options
-         */
-        test('feature defaults is called if it is a function', function() {
-            $('#qunit-fixture').append('<div id="real-defaults" data-fxr-real="{key: \'value\'}"></div>');
-            feaxures.register('real', {
-                files: ['js!tests/js/real'],
-                defaults: function(el) {
-                    return {'second_key': 'second_value'};
-                },
-                attach: function(element, options) {
-                    $(element).real();
-                }
-            });
-            feaxures.attach('real', $('[data-fxr-real]'));
-            stop();
-            var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
-            attachPromise.done(function(){
-                var options = $('#real-defaults').data('fxr.real');
-                equal(options.key, 'value', 'Feature has the proper configuration options');
-                equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
-                start();
-            });
+    /**
+     * This test fails on ZEPTO because of how $.data() method works
+     * (ie: it uses the data- attribute) so we cannot verify the final options
+     */
+    test('feature defaults is called if it is a function', function() {
+        $('#qunit-fixture').append('<div id="real-defaults" data-fxr-real="{key: \'value\'}"></div>');
+        feaxures.register('real', {
+            files: ['js!tests/js/real'],
+            defaults: function(el) {
+                return {'second_key': 'second_value'};
+            },
+            attach: function(element, options) {
+                $(element).real();
+            }
         });
-    }
+        feaxures.attach('real', $('[data-fxr-real]'));
+        stop();
+        var attachPromise = feaxures.attach('real', $('[data-fxr-real]'));
+        attachPromise.done(function(){
+            var options = $('#real-defaults')[0]['fxr.real'];
+            equal(options.key, 'value', 'Feature has the proper configuration options');
+            equal(options.second_key, 'second_value', 'Feature has the proper configuration options');
+            start();
+        });
+    });
     
     test('attach/apply feature on elements', function(){
         // create element that the feature will be applied to
@@ -214,7 +212,7 @@
         attachPromise.done(function() {
             var attached = 0;
             $('#real-a, #real-b, #real-c').each(function() {
-                if ($(this).data('fxr.real')) {
+                if (this['fxr.real']) {
                     attached++;
                 }
             });
@@ -248,7 +246,7 @@
         attachPromise.done(function() {
             var attached = 0;
             $('#bareal-a, #bareal-b, #bareal-c').each(function() {
-                if ($(this).data('fxr.bareal')) {
+                if (this['fxr.bareal']) {
                     attached++;
                 }
             });
@@ -306,10 +304,10 @@
         });
         var attachPromise = feaxures.attach('dereal', $('[data-fxr-dereal]'));
         attachPromise.done(function(){
-            notEqual($('#dereal').data('fxr.dereal'), null, 'feature is attached to element');
+            notEqual($('#dereal')[0]['fxr.dereal'], null, 'feature is attached to element');
             window.attachDerealFeature = false;
             $('body').trigger('dom:changed');
-            equal($('#dereal').data('fxr.dereal'), null, 'feature is detached from element');
+            equal($('#dereal')[0]['fxr.dereal'], null, 'feature is detached from element');
             start();
         });
     });
@@ -330,7 +328,7 @@
         discoverPromise.done(function(){
             var attached = 0;
             $('#morereal-a, #morereal-b, #morereal-c').each(function() {
-                if ($(this).data('fxr.real')) {
+                if (this['fxr.real']) {
                     attached++;
                 }
             });

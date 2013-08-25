@@ -31,13 +31,12 @@
         Deferred: Deferred,
         selector: function(selector, context) { return $(selector, context); },
         getAttr: function(element, attr) { return $(element).attr(attr); },
-        getData: function(element, name) { return $(element).data(name); },
-        setData: function(element, name, value) { return $(element).data(name, value); },
         bindEvent: function(element, event, callback) { return $(element).on(event, callback); },
         unbindEvent: function(element, event, callback) { return $(element).off(event, callback); },
         triggerEvent: function(element, event, data) { return $(element).trigger(event, data); },
         delegateEvent: function(element, event, selector, callback) { return $(element).on(event, selector, callback); },
-        undelegateEvent: function(element, event, selector, callback) { return $(element).off(event, selector, callback); }
+        undelegateEvent: function(element, event, selector, callback) { return $(element).off(event, selector, callback); },
+        domReady: function(callback) { return $(callback); }
     };
   </script>
   <script src="../src/feaxures.js"></script>

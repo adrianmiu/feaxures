@@ -36,7 +36,7 @@
     // Handles objects with the built-in `forEach`, arrays, and raw objects.
     // Delegates to **ECMAScript 5**'s native `forEach` if available.
     var each = function(obj, iterator, context) {
-      if (obj == null) return;
+      if (obj === null) { return; }
       if (nativeForEach && obj.forEach === nativeForEach) {
         obj.forEach(iterator, context);
       } else if (obj.length === +obj.length) {
@@ -57,7 +57,7 @@
         return StringProto.trim.call(str);
       }
       return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-    }
+    };
 
     // Evaluates a script in a global context
     // Workarounds based on findings by Jim Driscoll
@@ -95,12 +95,34 @@
       return obj;
     };
 
+    // function to get values from dom element
+    var getData = function(element, name) {
+      if (element && element.nodeType && name) {
+        return element[name] || null;
+      }
+      return null;
+    };
+
+    // function to set values on dom element
+    var setData = function(element, name, value) {
+      if (element && element.nodeType && name) {
+        element[name] = value;
+      }
+    };
+
+    var getAttr = function(element, name) {
+      if (element && element.nodeType && name) {
+        return element.getAttribute(name);
+      }
+      return null;
+    };
+
     // generates functions that throw errors when called
     var ErrorFactory = function(message) {
         return function() {
             throw new Error(message);
-        }
-    }
+        };
+    };
 
     /**
      * Functional mixin that provides Events capabilities
@@ -128,12 +150,13 @@
             this.off = function(name, func) {
               getCallbacks(name).remove(func);
               return this;
-            }
+            };
             this.trigger = function(name) {
               return getCallbacks(name).fireWith(this, [].slice.call(arguments));
             };
-        }
-    }   
+        };
+    }
+
 
 
     // Feaxures dependencies to be overwritten when needed by populating the window.FeaxuresDependencies object
@@ -150,9 +173,6 @@
     deps.domReady             = jQuery ? function(callback) { jQuery(callback); } : null;
     // DOM selector; must return an entity that can be iterated with each()
     deps.selector             = jQuery ? function(selector, context) { return jQuery(selector, context); } : null;
-    deps.getAttr              = jQuery ? function(element, attr) { return jQuery(element).attr(attr); } : null;
-    deps.getData              = jQuery ? function(element, name) { return jQuery.data(element, name); } : null;
-    deps.setData              = jQuery ? function(element, name, value) { return jQuery.data(element, name, value); } : null;
     deps.bindEvent            = jQuery ? function(element, event, callback) { return jQuery(element).on(event, callback); } : null;
     deps.unbindEvent          = jQuery ? function(element, event, callback) { return jQuery(element).off(event, callback); } : null;
     deps.triggerEvent         = jQuery ? function(element, event, data) { return jQuery(element).trigger(event, data); } : null;
@@ -479,7 +499,7 @@
         }
 
         featureDefinition.detach.call(this, element);
-        deps.setData(element, 'fxr.'+feature, null);
+        setData(element, 'fxr.'+feature, null);
         this.log('Feaxure ' + feature + ' was applied to element', element);
 
         // the feature is detached, remove the event callback
@@ -505,8 +525,8 @@
             featureDefinition = this._features[feature],
             // allow for feature's default options to be a function
             defaults = (typeof featureDefinition.defaults === 'function') ? featureDefinition.defaults.call(self, element) : featureDefinition.defaults,
-            options = deps.getAttr(element, 'data-fxr-'+feature),
-            alreadyAttached = (deps.getData(element, 'fxr.'+feature) !== null && deps.getData(element, 'fxr.'+feature) !== undefined);
+            options = getAttr(element, 'data-fxr-'+feature),
+            alreadyAttached = (getData(element, 'fxr.'+feature) !== null && getData(element, 'fxr.'+feature) !== undefined);
 
         // feature is already loaded or it doesn't have an attach() method
         if (alreadyAttached) {
@@ -529,7 +549,7 @@
 
             featureDefinition.attach.call(this, element, options);
             // store the computed options for further reference
-            deps.setData(element, 'fxr.'+feature, options);
+            setData(element, 'fxr.'+feature, options);
             this.log('Feaxure ' + feature + ' was applied to element', element);
 
             if (isDetachable) {
@@ -613,7 +633,7 @@
      * @returns {Object}        computed feature options
      */
     FeaxuresProto.getFeatureOptionsForElement = function(feature, domElement) {
-        var options = deps.getAttr(domElement, 'data-fxr-' + feature);
+        var options = getAttr(domElement, 'data-fxr-' + feature);
         if (options === 'false') {
             return false;
         } else if (options === 'true' || options === '') {
