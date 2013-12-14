@@ -492,7 +492,7 @@
 
         isDetachable = typeof featureDefinition.attachCondition === 'function' &&
               typeof featureDefinition.detach === 'function' &&
-              featureDefinition.attachCondition.call(featureDefinition, element) == false;
+              featureDefinition.attachCondition.call(featureDefinition, element) === false;
 
         if (!isDetachable) {
             return;

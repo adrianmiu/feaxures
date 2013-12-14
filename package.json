@@ -1,20 +1,28 @@
 {
-  "name"          : "feaxures",
-  "description"   : "Progressive enhancement with resource autoloading and HTML `data-` attributes",
-  "url"           : "http://www.feaxures.com",
-  "keywords"      : ["lazy loading", "progressive enhancement", "amd", "widgets", "jquery plugins"],
-  "author"        : "Adrian Miu <adrian@adrianmiu.ro>",
-  "dependencies"  : {
-    "jquery"  : ">=1.8.0",
-    "curl"    : ">=0.7.0"
+  "name": "feaxures",
+  "description": "Progressive enhancement with resource autoloading and HTML `data-` attributes",
+  "url": "http://www.feaxures.com",
+  "keywords": [
+    "lazy loading",
+    "progressive enhancement",
+    "amd",
+    "widgets",
+    "jquery plugins"
+  ],
+  "author": "Adrian Miu <adrian@adrianmiu.ro>",
+  "dependencies": {
+    "jquery": ">=1.8.0"
   },
   "devDependencies": {
+    "grunt": "~0.4.2",
+    "grunt-contrib-uglify": "~0.2.7",
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt-contrib-jshint": "~0.7.2"
   },
-  "scripts": {
-  },
-  "main"          : "src/feaxures.js",
-  "version"       : "1.0.0",
-  "license"       : "MIT",
+  "scripts": {},
+  "main": "src/feaxures.js",
+  "version": "1.0.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/adrianmiu/feaxures.git"
